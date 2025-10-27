@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Trash2, Clock, BookOpen } from 'lucide-react';
+import { Plus, X, Trash2, Clock, BookOpen,User } from 'lucide-react';
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -24,8 +24,8 @@ export default function Generate() {
   const navigate = useNavigate();
 
   const steps = [
-    { id: 1, label: 'Subjects & Duration' },
-    { id: 2, label: 'Schedule Settings' },
+    { id: 1, label: 'Schedule Settings' },
+    { id: 2, label: 'Subjects & Duration' },
     { id: 3, label: 'Review' },
   ];
   
@@ -88,84 +88,126 @@ export default function Generate() {
   };
   
 const handleNext = async () => {
-  // Step 1️⃣ — Validation
-  if (currentStep === 1 && formData.subjects.length === 0) {
-    alert("Please add at least one subject");
-    return;
+  // ✅ STEP 1 — FORM VALIDATIONS (before proceeding or submitting)
+  if (currentStep === 1) {
+    // Schedule Settings validations
+    if (!formData.branch || formData.branch.trim() === "") {
+      alert("Please enter your Branch / Class.");
+      return;
+    }
+
+    if (!formData.divisionCount || formData.divisionCount < 1) {
+      alert("Please specify the number of divisions (at least 1).");
+      return;
+    }
+
+    if (!formData.startTime || !formData.endTime) {
+      alert("Please select valid Start and End times.");
+      return;
+    }
+
+    const startMinutes = Number(formData.startTime.split(":")[0]) * 60 + Number(formData.startTime.split(":")[1]);
+    const endMinutes = Number(formData.endTime.split(":")[0]) * 60 + Number(formData.endTime.split(":")[1]);
+    if (endMinutes <= startMinutes) {
+      alert("End time must be later than start time.");
+      return;
+    }
+
+    if (formData.noOfBreaks && formData.breakTimes?.length > 0) {
+      const invalidBreak = formData.breakTimes.some(b => !b.start || !b.end);
+      if (invalidBreak) {
+        alert("Please enter valid start and end times for all breaks.");
+        return;
+      }
+    }
   }
 
-  if (
-    currentStep === 1 &&
-    formData.subjects.some((s) => !formData.subjectDurations[s]?.total)
-  ) {
-    alert("Please set duration for all subjects");
-    return;
+  if (currentStep === 2) {
+    // Subjects validations
+    if (!formData.subjects || formData.subjects.length === 0) {
+      alert("Please add at least one subject.");
+      return;
+    }
+
+    const missingDuration = formData.subjects.some(
+      (s) => !formData.subjectDurations[s]?.lectureDuration
+    );
+    if (missingDuration) {
+      alert("Please specify lecture durations for all subjects.");
+      return;
+    }
   }
 
-  // Step 2️⃣ — Move to next step (if form is multi-step)
+  // ✅ STEP 2 — NEXT STEP NAVIGATION
   if (currentStep < steps.length) {
-    setCurrentStep(currentStep + 1);
+    setCurrentStep((prev) => prev + 1);
     return;
   }
 
-  // Step 3️⃣ — Final Step: Generate Timetable
+  // ✅ STEP 3 — FINAL SUBMISSION
   try {
-    console.log("Submitting form data:", formData);
+    console.log("🧾 Submitting form data:", formData);
 
-    // Build backend payload
-    // ✅ Build backend payload correctly
+    // 🧩 Build backend payload
     const payload = {
+      branch: formData.branch || "",
+      divisionCount: formData.divisionCount || 1,
+      divisions: formData.divisions || [],
       subjects: formData.subjects.map((name) => ({
         name,
         lectures:
-          formData.subjectDurations[name]?.lectureCount || // ✅ correct key
-          Math.max(1, Math.floor((formData.subjectDurations[name]?.total || 60) / 60)),
+          formData.subjectDurations[name]?.lectureCount ||
+          Math.max(
+            1,
+            Math.floor(
+              (formData.subjectDurations[name]?.total || 60) / 60
+            )
+          ),
         durationPerLecture:
-          formData.subjectDurations[name]?.lectureDuration || // ✅ correct key
-          60,
+          formData.subjectDurations[name]?.lectureDuration || 60,
         totalDuration: formData.subjectDurations[name]?.total || 0,
+        professor:
+          formData.professors?.[name] || "Unassigned", // 👈 Optional if you add professors later
       })),
       startTime: formData.startTime || "09:00",
       endTime: formData.endTime || "17:00",
-      noOfBreaks:formData.noOfBreaks || 1,
+      noOfBreaks: formData.noOfBreaks || 1,
       availableHoursPerDay: formData.hoursPerDay || 8,
       workingDaysPerWeek: formData.workingDays || 5,
-      breakDuration: formData.breakDuration || 30,
+      // breakDuration: formData.breakDuration || 30,
+      // breakDetails:
+      //   formData.breakTimes?.map((b) => ({
+      //     start: b.start,
+      //     end: b.end,
+      //   })) || [],
       difficultyLevel: formData.difficultyLevel || 3,
-      breakTimes: formData.breakTimes || [],
     };
 
-    console.log("📦 Payload being sent to backend:", payload);
+    console.log("📦 Payload sent to backend:", payload);
 
-    // POST request to backend
-      try {
-      const response = await axios.post(
-        "http://localhost:5000/api/timetable/generate",
-        payload,
-        {
-          headers: { "Content-Type": "application/json" },
-          withCredentials: false,
-        }
-      );
+    // 🛰️ POST request to backend
+    const response = await axios.post(
+      "http://localhost:5000/api/timetable/generate",
+      payload,
+      {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: false,
+      }
+    );
 
-      console.log("✅ Timetable generated:", response.data);
-      navigate("/results", { state: { timetable: response.data } });
-    } catch (error) {
-      console.error("❌ Timetable generation failed:", error);
-      alert("Network error — could not connect to backend. Check console.");
-    }
+    console.log("✅ Timetable generated:", response.data);
 
-  console.log("🧠 AI Response from backend:", response.data);
-
-
-
-    // Step 4️⃣ — Navigate to results page
+    // ✅ STEP 4 — Navigate to results page
     navigate("/results", { state: { timetable: response.data } });
   } catch (error) {
     console.error("❌ Timetable generation failed:", error);
-    alert("Something went wrong while generating timetable. Check console.");
+    alert(
+      error.response?.data?.message ||
+        "Something went wrong while generating timetable. Check console."
+    );
   }
 };
+
 
   
   const handleBack = () => {
@@ -225,7 +267,7 @@ const handleNext = async () => {
         </div>
         
         {/* Step 1: Subjects & Duration */}
-        {currentStep === 1 && (
+        {currentStep === 2 && (
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-3xl p-8">
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-slate-100 mb-2">
@@ -350,51 +392,82 @@ const handleNext = async () => {
                             </>
                           ) : (
                             <>
-                              <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                                  No. of Lectures
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <BookOpen className="w-4 h-4 text-purple-400" />
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    value={duration.lectureCount || 0}
-                                    onChange={(e) => updateSubjectDuration(subject, 'lectureCount', e.target.value)}
-                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    placeholder="0"
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                                  Per Lecture (min)
-                                </label>
-                                <div className="flex items-center gap-2">
-                                  <Clock className="w-4 h-4 text-purple-400" />
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="360"
-                                    value={duration.lectureDuration || 0}
-                                    onChange={(e) => updateSubjectDuration(subject, 'lectureDuration', e.target.value)}
-                                    className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    placeholder="0"
-                                  />
-                                  <span className="text-xs text-slate-400">min</span>
-                                </div>
-                              </div>
-                              
-                              <div className="md:col-span-1 flex items-end">
-                                <div className="w-full px-3 py-2 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                                  <p className="text-xs text-purple-400 font-medium">
-                                    {duration.total ? `${duration.total} mins` : 'Set above'}
-                                  </p>
-                                </div>
-                              </div>
-                            </>
+  {/* Number of Lectures */}
+  <div>
+    <label className="block text-xs font-medium text-slate-400 mb-1.5">
+      No. of Lectures
+    </label>
+    <div className="flex items-center gap-2">
+      <BookOpen className="w-4 h-4 text-purple-400" />
+      <input
+        type="number"
+        min="0"
+        max="100"
+        value={duration.lectureCount || 0}
+        onChange={(e) =>
+          updateSubjectDuration(subject, "lectureCount", Number(e.target.value))
+        }
+        className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+        placeholder="e.g. 4"
+      />
+    </div>
+  </div>
+
+  {/* Per Lecture Duration */}
+  <div>
+    <label className="block text-xs font-medium text-slate-400 mb-1.5">
+      Per Lecture (min)
+    </label>
+    <div className="flex items-center gap-2">
+      <Clock className="w-4 h-4 text-purple-400" />
+      <input
+        type="number"
+        min="0"
+        max="360"
+        value={duration.lectureDuration || 0}
+        onChange={(e) =>
+          updateSubjectDuration(
+            subject,
+            "lectureDuration",
+            Number(e.target.value)
+          )
+        }
+        className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+        placeholder="e.g. 60"
+      />
+      <span className="text-xs text-slate-400">min</span>
+    </div>
+  </div>
+
+  {/* Faculty Name */}
+  <div>
+    <label className="block text-xs font-medium text-slate-400 mb-1.5">
+      Faculty Name
+    </label>
+    <div className="flex items-center gap-2">
+      <User className="w-4 h-4 text-purple-400" />
+      <input
+        type="text"
+        value={duration.facultyName || ""}
+        onChange={(e) =>
+          updateSubjectDuration(subject, "facultyName", e.target.value)
+        }
+        className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+        placeholder="e.g. Prof. Mehta"
+      />
+    </div>
+  </div>
+
+  {/* Total Duration Display */}
+  {/* <div className="md:col-span-1 flex items-end">
+    <div className="w-full px-3 py-2 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+      <p className="text-xs text-purple-400 font-medium">
+        {duration.total ? `${duration.total} mins` : "Set above"}
+      </p>
+    </div>
+  </div> */}
+</>
+
                           )}
                         </div>
                       </div>
@@ -422,9 +495,10 @@ const handleNext = async () => {
             
             {/* Action Buttons */}
             <div className="flex gap-4 mt-10">
+              
               <button 
-                className="flex-1 px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 font-medium hover:bg-slate-800 transition-all cursor-not-allowed opacity-50"
-                disabled
+                onClick={handleBack}
+                className="flex-1 px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 font-medium hover:bg-slate-800 transition-all"
               >
                 Back
               </button>
@@ -440,7 +514,7 @@ const handleNext = async () => {
         )}
         
         {/* Step 2: Schedule Settings */}
-        {currentStep === 2 && (
+        {currentStep === 1 && (
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-3xl p-8">
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-slate-100 mb-2">
@@ -452,12 +526,52 @@ const handleNext = async () => {
             </div>
             
             <div className="space-y-6">
-              
-              {/* Time Range */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Branch / Class
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Computer Engineering"
+                  value={formData.branch || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, branch: e.target.value })
+                  }
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-100 
+                            placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 
+                            focus:border-transparent transition-all"
+                />
+              </div>
+               <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  No of Divisions
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 3"
+                  value={formData.divisionCount || ""}
+                  onChange={(e) => {
+                    const count = Number(e.target.value);
+                    setFormData({
+                      ...formData,
+                      divisionCount: count,
+                      divisions: Array.from({ length: count }, (_, i) => ({
+                        name: String.fromCharCode(65 + i), // A, B, C...
+                        subjects: [],
+                      })),
+                    });
+                  }}
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-100 
+                            placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 
+                            focus:border-transparent transition-all"
+                />
+              </div>
+
+                <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Study Start Time
+                     Start Time
                   </label>
                   <input 
                     type="time"
@@ -469,7 +583,7 @@ const handleNext = async () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Study End Time
+                     End Time
                   </label>
                   <input 
                     type="time"
@@ -613,8 +727,8 @@ const handleNext = async () => {
             {/* Action Buttons */}
             <div className="flex gap-4 mt-10">
               <button 
-                onClick={handleBack}
-                className="flex-1 px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 font-medium hover:bg-slate-800 transition-all"
+                className="flex-1 px-6 py-4 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-300 font-medium hover:bg-slate-800 transition-all cursor-not-allowed opacity-50"
+                disabled
               >
                 Back
               </button>
@@ -688,10 +802,10 @@ const handleNext = async () => {
                     <p className="text-slate-400 text-xs">No of Breaks</p>
                     <p className="text-slate-100 font-semibold mt-1">{formData.noOfBreaks}/week</p>
                   </div>
-                  <div className="bg-slate-900/50 rounded-lg p-3">
+                  {/* <div className="bg-slate-900/50 rounded-lg p-3">
                     <p className="text-slate-400 text-xs">Break Duration</p>
                     <p className="text-slate-100 font-semibold mt-1">{formData.breakDuration} min</p>
-                  </div>
+                  </div> */}
                   <div className="bg-slate-900/50 rounded-lg p-3">
                     <p className="text-slate-400 text-xs">Difficulty</p>
                     <p className="text-slate-100 font-semibold mt-1">Level {formData.difficultyLevel}</p>

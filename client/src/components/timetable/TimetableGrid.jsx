@@ -43,21 +43,21 @@ const TimetableGrid = ({ timetableData, days, dates }) => {
                 );
 
               // ☕ If this is a break slot
-              if (slot.isBreak) {
-                return (
-                  <div
-                    key={slotIndex}
-                    className="border-l border-slate-800 p-2 flex items-center justify-center"
-                  >
-                    <div className="w-full h-full bg-slate-800/40 border border-slate-700 rounded-xl p-3 flex items-center justify-center text-slate-400 gap-2">
-                      <Coffee className="w-4 h-4" />
-                      <span className="text-sm font-medium">
-                        Break ({slot.start} - {slot.end})
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
+              // if (slot.isBreak) {
+              //   return (
+              //     <div
+              //       key={slotIndex}
+              //       className="border-l border-slate-800 p-2 flex items-center justify-center"
+              //     >
+              //       <div className="w-full h-full bg-slate-800/40 border border-slate-700 rounded-xl p-3 flex items-center justify-center text-slate-400 gap-2">
+              //         <Coffee className="w-4 h-4" />
+              //         <span className="text-sm font-medium">
+              //           Break ({slot.start} - {slot.end})
+              //         </span>
+              //       </div>
+              //     </div>
+              //   );
+              // }
 
               // 🎓 Normal Lecture Slot
               return <TimeSlot key={slotIndex} slot={slot} />;

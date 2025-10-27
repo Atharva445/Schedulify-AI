@@ -29,10 +29,10 @@ export const generateTimetable_AI = (data) => {
   };
 
   const normalizeTime = (time) => {
-    let [h, m] = time.split(":").map(Number);
-    if (h >= 1 && h <= 7) h += 12;
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-  };
+  let [h, m] = time.split(":").map(Number);
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+};
+
 
   const start = normalizeTime(startTime);
   const end = normalizeTime(endTime);
@@ -48,20 +48,32 @@ export const generateTimetable_AI = (data) => {
     return breaksInMinutes.some((b) => mins >= b.start && mins < b.end);
   };
 
+  // const skipOverBreaks = (time) => {
+  //   let nextTime = time;
+  //   while (isBreakTime(nextTime)) {
+  //     const activeBreak = breaksInMinutes.find(
+  //       (b) =>
+  //         timeToMinutes(nextTime) >= b.start &&
+  //         timeToMinutes(nextTime) < b.end
+  //     );
+  //     if (activeBreak) {
+  //       nextTime = minutesToTime(activeBreak.end);
+  //     } else break;
+  //   }
+  //   return nextTime;
+  // };
   const skipOverBreaks = (time) => {
-    let nextTime = time;
-    while (isBreakTime(nextTime)) {
-      const activeBreak = breaksInMinutes.find(
-        (b) =>
-          timeToMinutes(nextTime) >= b.start &&
-          timeToMinutes(nextTime) < b.end
-      );
-      if (activeBreak) {
-        nextTime = minutesToTime(activeBreak.end);
-      } else break;
-    }
-    return nextTime;
-  };
+  let nextTime = timeToMinutes(time);
+  const activeBreak = breaksInMinutes.find(
+    (b) => nextTime >= b.start && nextTime < b.end
+  );
+  // Only skip forward if we are inside a break
+  if (activeBreak) {
+    return minutesToTime(activeBreak.end);
+  }
+  return time;
+};
+
 
   // ====================== NORMALIZATION ======================
   const normalized = subjects.map((s) => ({
@@ -195,33 +207,32 @@ const createSingleTimetable = (balanceType = "even") => {
     slots: [],
   }));
 
-  // 🧩 Create LAB blocks (2-hour consecutive) - **Splitting 120 min into two 60 min blocks**
+  // 🧩 Create LAB blocks (2-hour consecutive)
   const labBlocks = [];
   labs.forEach((lab) => {
-    // Assuming lab.duration is 60 (from normalization)
     const totalPairs = Math.floor(lab.lectures / 2);
     const remainder = lab.lectures % 2;
 
     for (let i = 0; i < totalPairs; i++) {
       const blockId = `${lab.name}-pair-${i}`;
-      
-      // Push both 60-minute sessions linked by the blockId
-      labBlocks.push({
-        subject: lab.name,
-        duration: lab.duration, // 60 min
-        isLab: true,
-        block: true,
-        blockId: blockId,
-        isStart: true, // Marker for the first part
-      });
-      labBlocks.push({
-        subject: lab.name,
-        duration: lab.duration, // 60 min
-        isLab: true,
-        block: true,
-        blockId: blockId,
-        isContinuation: true, // Marker for the second part
-      });
+      labBlocks.push(
+        {
+          subject: lab.name,
+          duration: lab.duration,
+          isLab: true,
+          block: true,
+          blockId,
+          isStart: true,
+        },
+        {
+          subject: lab.name,
+          duration: lab.duration,
+          isLab: true,
+          block: true,
+          blockId,
+          isContinuation: true,
+        }
+      );
     }
 
     if (remainder > 0) {
@@ -231,6 +242,13 @@ const createSingleTimetable = (balanceType = "even") => {
         isLab: true,
         block: false,
       });
+      console.log("⏱ Time bounds check:", {
+        start,
+        end,
+        totalMinutes: timeToMinutes(end) - timeToMinutes(start),
+        breaksInMinutes
+});
+
     }
   });
 
@@ -246,97 +264,67 @@ const createSingleTimetable = (balanceType = "even") => {
     }
   });
 
-  // Group lab pairs into single "distribution" units
+  // Combine lab + theory sessions
   const distributableSessions = [];
   let i = 0;
   while (i < labBlocks.length) {
     const current = labBlocks[i];
     if (current.isStart) {
-      // It's the start of a pair, so push both items as an array unit
-      const continuation = labBlocks[i + 1];
-      distributableSessions.push([current, continuation]);
+      distributableSessions.push([current, labBlocks[i + 1]]);
       i += 2;
     } else {
-      // It's a single lab session (remainder)
       distributableSessions.push(current);
-      i += 1;
+      i++;
     }
   }
-
-  // Add all theory blocks as single units
-  theoryBlocks.forEach(session => distributableSessions.push(session));
-
-  // Randomize the order of the distributable units
+  theoryBlocks.forEach((s) => distributableSessions.push(s));
   distributableSessions.sort(() => Math.random() - 0.5);
 
-
-  // 🎯 Distribute across days - **MODIFIED DISTRIBUTION LOGIC**
-  let distribution;
-  
-  // Use distributeEvenly on the *distributable units*
-  let distributedUnits = distributeEvenly(distributableSessions, workingDaysPerWeek);
-
-  // Flatten the distributed units back into sessions, ensuring lab pairs stay together
-  const distributedSessionsByDay = distributedUnits.map(units => {
-      const daySessions = [];
-      units.forEach(unit => {
-          if (Array.isArray(unit)) {
-              daySessions.push(...unit); // Spread the lab pair (two 60 min blocks)
-          } else {
-              daySessions.push(unit); // Single session (theory or remainder lab)
-          }
-      });
-      return daySessions;
-  });
-
-  // Apply balance type sort after initial distribution (optional, less effective now)
-  if (balanceType === "front-heavy" || balanceType === "back-heavy") {
-    // You'd need more complex logic to re-sort while maintaining day totals,
-    // but for now, we'll stick to the flat distribution across days.
-    // The sorting within distributeEvenly is what mostly drives the result.
-  }
-  
-  distribution = distributedSessionsByDay;
+  // 🎯 Distribute evenly across days
+  const distributedUnits = distributeEvenly(distributableSessions, workingDaysPerWeek);
+  const distributedSessionsByDay = distributedUnits.map((units) =>
+    units.flatMap((u) => (Array.isArray(u) ? u : [u]))
+  );
 
   // 🕓 Assign sessions to time slots
   timetable.forEach((dayObj, dIndex) => {
-    const sessions = distribution[dIndex] || []; // Use the new distribution array
+    const sessions = distributedSessionsByDay[dIndex] || [];
     let currentTime = start;
     const validSlots = [];
 
     for (const slot of sessions) {
-      // Skip breaks
+      // ✅ Keep currentTime within start–end window
+      if (timeToMinutes(currentTime) >= timeToMinutes(end)) break;
+
+      // Skip over breaks only if we’re *inside* a break
       currentTime = skipOverBreaks(currentTime);
 
       const slotEnd = addMinutes(currentTime, slot.duration);
-      
-      // Check for overlapping breaks within the 60 min duration
-      let isBreakConflict = false;
-      const slotStartTimeMins = timeToMinutes(currentTime);
-      const slotEndTimeMins = timeToMinutes(slotEnd);
-      for(const b of breaksInMinutes) {
-          if (b.start < slotEndTimeMins && b.end > slotStartTimeMins) {
-              isBreakConflict = true;
-              break;
-          }
-      }
-      
-      // If the slot is too long or conflicts with a break, skip it
-      if (timeToMinutes(slotEnd) > timeToMinutes(end) || isBreakConflict) {
-          continue; // Skip session that can't fit
+      const slotStartMin = timeToMinutes(currentTime);
+      const slotEndMin = timeToMinutes(slotEnd);
+
+      // Check overlap with breaks
+      const hasBreakConflict = breaksInMinutes.some(
+        (b) => b.start < slotEndMin && b.end > slotStartMin
+      );
+
+      // Skip sessions that go beyond end time or overlap breaks
+      if (slotEndMin > timeToMinutes(end) || hasBreakConflict) {
+        currentTime = addMinutes(currentTime, slot.duration);
+        continue;
       }
 
+      // ✅ Add lecture slot
       validSlots.push({
         ...slot,
         start: currentTime,
         end: slotEnd,
       });
 
-      // Advance time to the exact end of the slot.
       currentTime = slotEnd;
     }
 
-    // Insert breaks explicitly
+    // ☕ Add breaks explicitly for display
     breakDetails.forEach((b) => {
       validSlots.push({
         subject: "Break",
@@ -352,6 +340,7 @@ const createSingleTimetable = (balanceType = "even") => {
 
   return timetable;
 };
+
 
   // ====================== VARIANT GENERATION ======================
   const totalStudyTime = normalized.reduce(
