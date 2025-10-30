@@ -123,7 +123,7 @@ const timetableData = hourlySlots.map(({ start, end }) => ({
     if (!covering) return null;
 
     // 🟣 Lecture continues from a previous hour — skip duplicate rendering
-    if (covering.start !== start) return null;
+    // if (covering.start !== start) return null;
 
     // 🟢 Lecture starts at this hour — render it
     const durationMins = timeToMinutes(covering.end) - timeToMinutes(covering.start);

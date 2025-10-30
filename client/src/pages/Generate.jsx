@@ -62,24 +62,32 @@ export default function Generate() {
   };
   
   const updateSubjectDuration = (subject, field, value) => {
+  const current = formData.subjectDurations[subject] || {};
+  let updated = { ...current };
+
+  if (field === "facultyName") {
+    // Keep text value as is
+    updated[field] = value;
+  } else {
+    // Convert numeric inputs
     const numValue = parseInt(value) || 0;
-    const current = formData.subjectDurations[subject] || {};
-    
-    let updated = { ...current, [field]: numValue };
-    
-    // Auto-calculate total if changing lecture count or duration
-    if (field === 'lectureCount' || field === 'lectureDuration') {
-      updated.total = updated.lectureCount * updated.lectureDuration;
-    }
-    
-    setFormData({
-      ...formData,
-      subjectDurations: {
-        ...formData.subjectDurations,
-        [subject]: updated
-      }
-    });
-  };
+    updated[field] = numValue;
+  }
+
+  // Auto-calculate total when lecture count or duration changes
+  if (field === "lectureCount" || field === "lectureDuration") {
+    updated.total = (updated.lectureCount || 0) * (updated.lectureDuration || 0);
+  }
+
+  setFormData({
+    ...formData,
+    subjectDurations: {
+      ...formData.subjectDurations,
+      [subject]: updated,
+    },
+  });
+};
+
   
   const getTotalStudyHours = () => {
     return Object.values(formData.subjectDurations).reduce((sum, duration) => {
@@ -87,50 +95,238 @@ export default function Generate() {
     }, 0);
   };
   
+// const handleNext = async () => {
+//   // ✅ STEP 1 — FORM VALIDATIONS (before proceeding or submitting)
+//   if (currentStep === 1) {
+//     // Schedule Settings validations
+//     if (!formData.branch || formData.branch.trim() === "") {
+//       alert("Please enter your Branch / Class.");
+//       return;
+//     }
+
+//     if (!formData.divisionCount || formData.divisionCount < 1) {
+//       alert("Please specify the number of divisions (at least 1).");
+//       return;
+//     }
+
+//     if (!formData.startTime || !formData.endTime) {
+//       alert("Please select valid Start and End times.");
+//       return;
+//     }
+
+//     const startMinutes = Number(formData.startTime.split(":")[0]) * 60 + Number(formData.startTime.split(":")[1]);
+//     const endMinutes = Number(formData.endTime.split(":")[0]) * 60 + Number(formData.endTime.split(":")[1]);
+//     if (endMinutes <= startMinutes) {
+//       alert("End time must be later than start time.");
+//       return;
+//     }
+
+//     if (formData.noOfBreaks && formData.breakTimes?.length > 0) {
+//       const invalidBreak = formData.breakTimes.some(b => !b.start || !b.end);
+//       if (invalidBreak) {
+//         alert("Please enter valid start and end times for all breaks.");
+//         return;
+//       }
+//     }
+//   }
+
+//   if (currentStep === 2) {
+//     // Subjects validations
+//     if (!formData.subjects || formData.subjects.length === 0) {
+//       alert("Please add at least one subject.");
+//       return;
+//     }
+
+//     const missingDuration = formData.subjects.some(
+//       (s) => !formData.subjectDurations[s]?.lectureDuration
+//     );
+//     if (missingDuration) {
+//       alert("Please specify lecture durations for all subjects.");
+//       return;
+//     }
+//   }
+
+//   // ✅ STEP 2 — NEXT STEP NAVIGATION
+//   if (currentStep < steps.length) {
+//     setCurrentStep((prev) => prev + 1);
+//     return;
+//   }
+
+//   // ✅ STEP 3 — FINAL SUBMISSION
+//   try {
+//     console.log("🧾 Submitting form data:", formData);
+
+//     // 🧩 Build backend payload
+//     const payload = {
+//       branch: formData.branch || "",
+//       divisionCount: formData.divisionCount || 1,
+//       divisions: formData.divisions || [],
+//       subjects: formData.subjects.map((name) => ({
+//         name,
+//         lectures:
+//           formData.subjectDurations[name]?.lectureCount ||
+//           Math.max(
+//             1,
+//             Math.floor(
+//               (formData.subjectDurations[name]?.total || 60) / 60
+//             )
+//           ),
+//         durationPerLecture:
+//           formData.subjectDurations[name]?.lectureDuration || 60,
+//         totalDuration: formData.subjectDurations[name]?.total || 0,
+//         professor:
+//           formData.professors?.[name] || "Unassigned", // 👈 Optional if you add professors later
+//       })),
+//       startTime: formData.startTime || "09:00",
+//       endTime: formData.endTime || "17:00",
+//       noOfBreaks: formData.noOfBreaks || 1,
+//       availableHoursPerDay: formData.hoursPerDay || 8,
+//       workingDaysPerWeek: formData.workingDays || 5,
+//       // breakDuration: formData.breakDuration || 30,
+//       // breakDetails:
+//       //   formData.breakTimes?.map((b) => ({
+//       //     start: b.start,
+//       //     end: b.end,
+//       //   })) || [],
+//       difficultyLevel: formData.difficultyLevel || 3,
+//     };
+
+//     console.log("📦 Payload sent to backend:", payload);
+
+//     // 🛰️ POST request to backend
+//     const response = await axios.post(
+//       "http://localhost:5000/api/timetable/generate",
+//       payload,
+//       {
+//         headers: { "Content-Type": "application/json" },
+//         withCredentials: false,
+//       }
+//     );
+
+//     console.log("✅ Timetable generated:", response.data);
+
+//     // ✅ STEP 4 — Navigate to results page
+//     navigate("/results", { state: { timetable: response.data } });
+//   } catch (error) {
+//     console.error("❌ Timetable generation failed:", error);
+//     alert(
+//       error.response?.data?.message ||
+//         "Something went wrong while generating timetable. Check console."
+//     );
+//   }
+// };
+// ---------- Helper: Build clean payload for backend ----------
+const buildPayloadFromForm = (formData) => {
+  // Ensure numeric conversions and sane defaults
+  const branch = (formData.branch || "").trim();
+  const divisionCount = Number(formData.divisionCount) || 1;
+  const workingDaysPerWeek = Number(formData.workingDays) || 5;
+  const availableHoursPerDay = Number(formData.hoursPerDay) || 8;
+  const startTime = formData.startTime || "09:00";
+  const endTime = formData.endTime || "17:00";
+  const breakDetails = (formData.breakDetails || []).map((b) => ({
+    start: b.start || "12:00",
+    end: b.end || addMinutes(b.start || "12:00", Number(b.duration || 30)),
+    duration: Number(b.duration || 30),
+  }));
+
+  // Build unique faculties list from subjectDurations[*].facultyName
+  const facultyNameToId = {};
+  const faculties = [];
+  formData.subjects.forEach((s) => {
+    const meta = formData.subjectDurations?.[s] || {};
+    const fname = (meta.facultyName || "").trim();
+    if (fname) {
+      if (!(fname in facultyNameToId)) {
+        const id = faculties.length + 1; // simple incremental id
+        facultyNameToId[fname] = id;
+        faculties.push({ id, name: fname });
+      }
+    }
+  });
+
+  // Build subjects array with facultyId (or null) and durations in minutes
+  const subjects = formData.subjects.map((name) => {
+    const meta = formData.subjectDurations?.[name] || {};
+    // note: in your UI you used lectureDuration in minutes and total in mins
+    const lectureDuration = Number(meta.lectureDuration || 60); // minutes
+    const lectureCount =
+      Number(meta.lectureCount) ||
+      Math.max(1, Math.floor(Number(meta.total || 60) / Math.max(1, lectureDuration)));
+    const totalDuration = Number(meta.total) || lectureCount * lectureDuration;
+
+    const facultyName = (meta.facultyName || "").trim();
+    const facultyId = facultyName ? facultyNameToId[facultyName] : null;
+
+    return {
+      name,
+      lectures: lectureCount,
+      durationPerLecture: lectureDuration,
+      totalDuration,
+      facultyId, // null means "Unassigned" — backend can attempt to assign from a pool
+      facultyName: facultyName || null,
+    };
+  });
+
+  // Optional: build divisions array (A, B, C...)
+  const divisions = Array.from({ length: divisionCount }, (_, i) => ({
+    name: String.fromCharCode(65 + i),
+  }));
+
+  return {
+    branch,
+    numDivisions: divisionCount,
+    divisions,
+    faculties, // [{id, name}, ...]
+    subjects,
+    startTime,
+    endTime,
+    workingDaysPerWeek,
+    availableHoursPerDay,
+    breakDetails,
+    difficultyLevel: Number(formData.difficultyLevel || 3),
+  };
+};
+
+// ---------- Replacement handleNext ----------
 const handleNext = async () => {
-  // ✅ STEP 1 — FORM VALIDATIONS (before proceeding or submitting)
+  // STEP 1 VALIDATIONS
   if (currentStep === 1) {
-    // Schedule Settings validations
     if (!formData.branch || formData.branch.trim() === "") {
       alert("Please enter your Branch / Class.");
       return;
     }
-
-    if (!formData.divisionCount || formData.divisionCount < 1) {
+    if (!formData.divisionCount || Number(formData.divisionCount) < 1) {
       alert("Please specify the number of divisions (at least 1).");
       return;
     }
-
     if (!formData.startTime || !formData.endTime) {
       alert("Please select valid Start and End times.");
       return;
     }
-
-    const startMinutes = Number(formData.startTime.split(":")[0]) * 60 + Number(formData.startTime.split(":")[1]);
-    const endMinutes = Number(formData.endTime.split(":")[0]) * 60 + Number(formData.endTime.split(":")[1]);
+    const [sh, sm] = formData.startTime.split(":").map(Number);
+    const [eh, em] = formData.endTime.split(":").map(Number);
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
     if (endMinutes <= startMinutes) {
       alert("End time must be later than start time.");
       return;
     }
-
-    if (formData.noOfBreaks && formData.breakTimes?.length > 0) {
-      const invalidBreak = formData.breakTimes.some(b => !b.start || !b.end);
-      if (invalidBreak) {
-        alert("Please enter valid start and end times for all breaks.");
-        return;
-      }
+    if (formData.noOfBreaks && (formData.breakDetails || []).length < Number(formData.noOfBreaks)) {
+      alert("Please fill all break start/end details.");
+      return;
     }
   }
 
+  // STEP 2 VALIDATIONS
   if (currentStep === 2) {
-    // Subjects validations
     if (!formData.subjects || formData.subjects.length === 0) {
       alert("Please add at least one subject.");
       return;
     }
-
+    // ensure lectureDuration is present when using lecture mode or lectureCount provided
     const missingDuration = formData.subjects.some(
-      (s) => !formData.subjectDurations[s]?.lectureDuration
+      (s) => !formData.subjectDurations?.[s]?.lectureDuration
     );
     if (missingDuration) {
       alert("Please specify lecture durations for all subjects.");
@@ -138,54 +334,20 @@ const handleNext = async () => {
     }
   }
 
-  // ✅ STEP 2 — NEXT STEP NAVIGATION
+  // go to next step if not final
   if (currentStep < steps.length) {
-    setCurrentStep((prev) => prev + 1);
+    setCurrentStep((p) => p + 1);
     return;
   }
 
-  // ✅ STEP 3 — FINAL SUBMISSION
+  // FINAL SUBMISSION
   try {
     console.log("🧾 Submitting form data:", formData);
 
-    // 🧩 Build backend payload
-    const payload = {
-      branch: formData.branch || "",
-      divisionCount: formData.divisionCount || 1,
-      divisions: formData.divisions || [],
-      subjects: formData.subjects.map((name) => ({
-        name,
-        lectures:
-          formData.subjectDurations[name]?.lectureCount ||
-          Math.max(
-            1,
-            Math.floor(
-              (formData.subjectDurations[name]?.total || 60) / 60
-            )
-          ),
-        durationPerLecture:
-          formData.subjectDurations[name]?.lectureDuration || 60,
-        totalDuration: formData.subjectDurations[name]?.total || 0,
-        professor:
-          formData.professors?.[name] || "Unassigned", // 👈 Optional if you add professors later
-      })),
-      startTime: formData.startTime || "09:00",
-      endTime: formData.endTime || "17:00",
-      noOfBreaks: formData.noOfBreaks || 1,
-      availableHoursPerDay: formData.hoursPerDay || 8,
-      workingDaysPerWeek: formData.workingDays || 5,
-      // breakDuration: formData.breakDuration || 30,
-      // breakDetails:
-      //   formData.breakTimes?.map((b) => ({
-      //     start: b.start,
-      //     end: b.end,
-      //   })) || [],
-      difficultyLevel: formData.difficultyLevel || 3,
-    };
-
+    const payload = buildPayloadFromForm(formData);
     console.log("📦 Payload sent to backend:", payload);
 
-    // 🛰️ POST request to backend
+    // POST to backend
     const response = await axios.post(
       "http://localhost:5000/api/timetable/generate",
       payload,
@@ -196,8 +358,6 @@ const handleNext = async () => {
     );
 
     console.log("✅ Timetable generated:", response.data);
-
-    // ✅ STEP 4 — Navigate to results page
     navigate("/results", { state: { timetable: response.data } });
   } catch (error) {
     console.error("❌ Timetable generation failed:", error);
@@ -221,6 +381,16 @@ const handleNext = async () => {
       setCurrentStep(step);
     }
   };
+  // Helper to add minutes to a time string like "12:00" → "12:30"
+  const addMinutes = (time, mins) => {
+    const [h, m] = time.split(":").map(Number);
+    const d = new Date(0, 0, 0, h, m);
+    d.setMinutes(d.getMinutes() + mins);
+    const hours = d.getHours().toString().padStart(2, "0");
+    const minutes = d.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  };
+
   
   return (
     <div className="min-h-screen bg-slate-950 py-12">

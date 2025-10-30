@@ -1,13 +1,15 @@
 export const generateTimetable_AI = (data) => {
   const {
-    subjects = [],
+    branch = "CSE",
+    numDivisions = 1,
+    faculties = [], // [{ id, name }]
+    subjects = [], // [{ name, durationPerLecture, totalDuration, facultyId }]
     startTime = "09:00",
     endTime = "17:00",
     workingDaysPerWeek = 5,
-    breakDetails = [],
   } = data || {};
 
-  // ====================== HELPERS ======================
+  // ---------- Helpers ----------
   const addMinutes = (time, mins) => {
     const [h, m] = time.split(":").map(Number);
     const d = new Date(0, 0, 0, h, m);
@@ -20,62 +22,15 @@ export const generateTimetable_AI = (data) => {
     return h * 60 + m;
   };
 
-  const minutesToTime = (m) => {
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    return `${h.toString().padStart(2, "0")}:${min
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
   const normalizeTime = (time) => {
-  let [h, m] = time.split(":").map(Number);
-  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-};
-
+    let [h, m] = time.split(":").map(Number);
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+  };
 
   const start = normalizeTime(startTime);
   const end = normalizeTime(endTime);
 
-  // ====================== BREAK HANDLER ======================
-  const breaksInMinutes = breakDetails.map((b) => ({
-    start: timeToMinutes(b.start),
-    end: timeToMinutes(b.end),
-  }));
-
-  const isBreakTime = (time) => {
-    const mins = timeToMinutes(time);
-    return breaksInMinutes.some((b) => mins >= b.start && mins < b.end);
-  };
-
-  // const skipOverBreaks = (time) => {
-  //   let nextTime = time;
-  //   while (isBreakTime(nextTime)) {
-  //     const activeBreak = breaksInMinutes.find(
-  //       (b) =>
-  //         timeToMinutes(nextTime) >= b.start &&
-  //         timeToMinutes(nextTime) < b.end
-  //     );
-  //     if (activeBreak) {
-  //       nextTime = minutesToTime(activeBreak.end);
-  //     } else break;
-  //   }
-  //   return nextTime;
-  // };
-  const skipOverBreaks = (time) => {
-  let nextTime = timeToMinutes(time);
-  const activeBreak = breaksInMinutes.find(
-    (b) => nextTime >= b.start && nextTime < b.end
-  );
-  // Only skip forward if we are inside a break
-  if (activeBreak) {
-    return minutesToTime(activeBreak.end);
-  }
-  return time;
-};
-
-
-  // ====================== NORMALIZATION ======================
+  // ---------- Normalize subjects ----------
   const normalized = subjects.map((s) => ({
     ...s,
     duration: s.durationPerLecture || 60,
@@ -86,7 +41,6 @@ export const generateTimetable_AI = (data) => {
     isLab: /lab/i.test(s.name),
   }));
 
-  // ====================== DISTRIBUTION HELPER ======================
   const distributeEvenly = (items, groups) => {
     const distribution = Array.from({ length: groups }, () => []);
     let idx = 0;
@@ -97,270 +51,156 @@ export const generateTimetable_AI = (data) => {
     return distribution;
   };
 
-  // ====================== SINGLE TIMETABLE CREATOR ======================
-  // const createSingleTimetable = (balanceType = "even") => {
-  //   const labs = normalized.filter((s) => s.isLab);
-  //   const others = normalized.filter((s) => !s.isLab);
+  // ---------- Faculty tracker (global across divisions) ----------
+  const facultyBusy = {}; // facultyId -> Set of "day_start-end" keys
 
-  //   const timetable = Array.from({ length: workingDaysPerWeek }, (_, i) => ({
-  //     day: `Day ${i + 1}`,
-  //     slots: [],
-  //   }));
+  const isFacultyFree = (facultyId, day, startT, endT) => {
+    // if facultyId null or undefined -> treat as free (unassigned teachers allowed)
+    if (facultyId == null) return true;
+    const key = `${day}_${startT}-${endT}`;
+    return !facultyBusy[facultyId]?.has(key);
+  };
 
-  //   // 🧩 Create LAB blocks (2-hour consecutive)
-  //   const labBlocks = [];
-  //   labs.forEach((lab) => {
-  //     const totalPairs = Math.floor(lab.lectures / 2);
-  //     const remainder = lab.lectures % 2;
+  const markFacultyBusy = (facultyId, day, startT, endT) => {
+    if (facultyId == null) return; // nothing to mark if unassigned
+    const key = `${day}_${startT}-${endT}`;
+    if (!facultyBusy[facultyId]) facultyBusy[facultyId] = new Set();
+    facultyBusy[facultyId].add(key);
+  };
 
-  //     for (let i = 0; i < totalPairs; i++) {
-  //       labBlocks.push({
-  //         subject: lab.name,
-  //         duration: lab.duration * 2, // 2-hour block
-  //         isLab: true,
-  //         block: true,
-  //       });
-  //     }
+  // ---------- Build session units (make lab pairs consecutive) ----------
+  // For each subject, create session blocks for this division:
+  // - For labs: pair into 2-slot blocks when possible (duration * 2)
+  // - For theory: single lecture blocks of duration
+  const buildSessionsForDivision = () => {
+    const sessions = [];
 
-  //     if (remainder > 0) {
-  //       labBlocks.push({
-  //         subject: lab.name,
-  //         duration: lab.duration,
-  //         isLab: true,
-  //         block: false,
-  //       });
-  //     }
-  //   });
-
-  //   // 🧮 Add theory lectures
-  //   const theoryBlocks = [];
-  //   others.forEach((s) => {
-  //     for (let i = 0; i < s.lectures; i++) {
-  //       theoryBlocks.push({
-  //         subject: s.name,
-  //         duration: s.duration,
-  //         isLab: false,
-  //       });
-  //     }
-  //   });
-
-  //   const allSessions = [...labBlocks, ...theoryBlocks].sort(
-  //     () => Math.random() - 0.5
-  //   );
-
-  //   // 🎯 Distribute across days
-  //   let distributed;
-  //   if (balanceType === "even")
-  //     distributed = distributeEvenly(allSessions, workingDaysPerWeek);
-  //   else if (balanceType === "front-heavy")
-  //     distributed = distributeEvenly(allSessions, workingDaysPerWeek).sort(
-  //       () => 0.5 - Math.random()
-  //     );
-  //   else if (balanceType === "back-heavy")
-  //     distributed = distributeEvenly(allSessions.reverse(), workingDaysPerWeek);
-
-  //   // 🕓 Assign sessions to time slots
-  //   timetable.forEach((dayObj, dIndex) => {
-  //     const sessions = distributed[dIndex] || [];
-  //     let currentTime = start;
-  //     const validSlots = [];
-
-  //     for (const slot of sessions) {
-  //       // Skip breaks
-  //       currentTime = skipOverBreaks(currentTime);
-
-  //       const slotEnd = addMinutes(currentTime, slot.duration);
-  //       if (timeToMinutes(slotEnd) > timeToMinutes(end)) break;
-
-  //       validSlots.push({
-  //         ...slot,
-  //         start: currentTime,
-  //         end: slotEnd,
-  //       });
-
-  //       currentTime = addMinutes(slotEnd, 0);
-  //     }
-
-  //     // Insert breaks explicitly
-  //     breakDetails.forEach((b) => {
-  //       validSlots.push({
-  //         subject: "Break",
-  //         start: b.start,
-  //         end: b.end,
-  //         isBreak: true,
-  //       });
-  //     });
-
-  //     validSlots.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-  //     dayObj.slots = validSlots;
-  //   });
-
-  //   return timetable;
-  // };
-
-const createSingleTimetable = (balanceType = "even") => {
-  const labs = normalized.filter((s) => s.isLab);
-  const others = normalized.filter((s) => !s.isLab);
-
-  const timetable = Array.from({ length: workingDaysPerWeek }, (_, i) => ({
-    day: `Day ${i + 1}`,
-    slots: [],
-  }));
-
-  // 🧩 Create LAB blocks (2-hour consecutive)
-  const labBlocks = [];
-  labs.forEach((lab) => {
-    const totalPairs = Math.floor(lab.lectures / 2);
-    const remainder = lab.lectures % 2;
-
-    for (let i = 0; i < totalPairs; i++) {
-      const blockId = `${lab.name}-pair-${i}`;
-      labBlocks.push(
-        {
-          subject: lab.name,
-          duration: lab.duration,
-          isLab: true,
-          block: true,
-          blockId,
-          isStart: true,
-        },
-        {
-          subject: lab.name,
-          duration: lab.duration,
-          isLab: true,
-          block: true,
-          blockId,
-          isContinuation: true,
+    normalized.forEach((s) => {
+      const dur = s.duration;
+      if (s.isLab) {
+        // pair labs into 2-lecture consecutive blocks first
+        const pairs = Math.floor(s.lectures / 2);
+        for (let i = 0; i < pairs; i++) {
+          sessions.push({
+            subject: s.name,
+            facultyId: s.facultyId ?? null,
+            duration: dur * 2, // two consecutive lecture durations
+            isLab: true,
+            blockType: "lab-pair",
+            sourceLectures: 2,
+          });
         }
-      );
-    }
-
-    if (remainder > 0) {
-      labBlocks.push({
-        subject: lab.name,
-        duration: lab.duration,
-        isLab: true,
-        block: false,
-      });
-      console.log("⏱ Time bounds check:", {
-        start,
-        end,
-        totalMinutes: timeToMinutes(end) - timeToMinutes(start),
-        breaksInMinutes
-});
-
-    }
-  });
-
-  // 🧮 Add theory lectures
-  const theoryBlocks = [];
-  others.forEach((s) => {
-    for (let i = 0; i < s.lectures; i++) {
-      theoryBlocks.push({
-        subject: s.name,
-        duration: s.duration,
-        isLab: false,
-      });
-    }
-  });
-
-  // Combine lab + theory sessions
-  const distributableSessions = [];
-  let i = 0;
-  while (i < labBlocks.length) {
-    const current = labBlocks[i];
-    if (current.isStart) {
-      distributableSessions.push([current, labBlocks[i + 1]]);
-      i += 2;
-    } else {
-      distributableSessions.push(current);
-      i++;
-    }
-  }
-  theoryBlocks.forEach((s) => distributableSessions.push(s));
-  distributableSessions.sort(() => Math.random() - 0.5);
-
-  // 🎯 Distribute evenly across days
-  const distributedUnits = distributeEvenly(distributableSessions, workingDaysPerWeek);
-  const distributedSessionsByDay = distributedUnits.map((units) =>
-    units.flatMap((u) => (Array.isArray(u) ? u : [u]))
-  );
-
-  // 🕓 Assign sessions to time slots
-  timetable.forEach((dayObj, dIndex) => {
-    const sessions = distributedSessionsByDay[dIndex] || [];
-    let currentTime = start;
-    const validSlots = [];
-
-    for (const slot of sessions) {
-      // ✅ Keep currentTime within start–end window
-      if (timeToMinutes(currentTime) >= timeToMinutes(end)) break;
-
-      // Skip over breaks only if we’re *inside* a break
-      currentTime = skipOverBreaks(currentTime);
-
-      const slotEnd = addMinutes(currentTime, slot.duration);
-      const slotStartMin = timeToMinutes(currentTime);
-      const slotEndMin = timeToMinutes(slotEnd);
-
-      // Check overlap with breaks
-      const hasBreakConflict = breaksInMinutes.some(
-        (b) => b.start < slotEndMin && b.end > slotStartMin
-      );
-
-      // Skip sessions that go beyond end time or overlap breaks
-      if (slotEndMin > timeToMinutes(end) || hasBreakConflict) {
-        currentTime = addMinutes(currentTime, slot.duration);
-        continue;
+        // leftover single lab lecture if odd count
+        if (s.lectures % 2 === 1) {
+          sessions.push({
+            subject: s.name,
+            facultyId: s.facultyId ?? null,
+            duration: dur,
+            isLab: true,
+            blockType: "lab-single",
+            sourceLectures: 1,
+          });
+        }
+      } else {
+        // theory lectures as single blocks
+        for (let i = 0; i < s.lectures; i++) {
+          sessions.push({
+            subject: s.name,
+            facultyId: s.facultyId ?? null,
+            duration: dur,
+            isLab: false,
+            blockType: "theory",
+            sourceLectures: 1,
+          });
+        }
       }
-
-      // ✅ Add lecture slot
-      validSlots.push({
-        ...slot,
-        start: currentTime,
-        end: slotEnd,
-      });
-
-      currentTime = slotEnd;
-    }
-
-    // ☕ Add breaks explicitly for display
-    breakDetails.forEach((b) => {
-      validSlots.push({
-        subject: "Break",
-        start: b.start,
-        end: b.end,
-        isBreak: true,
-      });
     });
 
-    validSlots.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-    dayObj.slots = validSlots;
+    return sessions;
+  };
+
+  // ---------- Create a single division timetable ----------
+  const createSingleTimetable = (divisionName) => {
+    // build fresh sessions for this division (so each division gets same subject counts)
+    const sessions = buildSessionsForDivision();
+
+    // shuffle to avoid identical ordering each run
+    sessions.sort(() => Math.random() - 0.5);
+
+    // distribute sessions across days (so each day gets roughly equal number of sessions)
+    const perDayUnits = distributeEvenly(sessions, workingDaysPerWeek);
+
+    const timetable = Array.from({ length: workingDaysPerWeek }, (_, i) => ({
+      day: `Day ${i + 1}`,
+      slots: [],
+    }));
+
+    // schedule greedily per day
+    timetable.forEach((dayObj, dIndex) => {
+      const units = perDayUnits[dIndex] || [];
+      let currentTime = start;
+      const placed = [];
+
+      for (const u of units) {
+        // if we already reached or exceeded end -> stop
+        if (timeToMinutes(currentTime) >= timeToMinutes(end)) break;
+
+        // compute end time for this unit
+        const uEnd = addMinutes(currentTime, u.duration);
+
+        // skip if exceeds end-of-day
+        if (timeToMinutes(uEnd) > timeToMinutes(end)) {
+          // can't place this unit today
+          continue;
+        }
+
+        // check faculty availability (global across divisions)
+        if (!isFacultyFree(u.facultyId, dayObj.day, currentTime, uEnd)) {
+          // faculty busy — we will try to find a later time on same day by moving currentTime forward
+          // but to keep simple greedy approach, just skip this unit for now (it may appear on another day)
+          continue;
+        }
+
+        // place unit
+        placed.push({
+          subject: u.subject,
+          facultyId: u.facultyId,
+          duration: u.duration,
+          isLab: u.isLab,
+          blockType: u.blockType,
+          start: currentTime,
+          end: uEnd,
+        });
+
+        // mark faculty busy globally
+        markFacultyBusy(u.facultyId, dayObj.day, currentTime, uEnd);
+
+        // advance currentTime to after placed block
+        currentTime = uEnd;
+      }
+
+      // assign placed sessions (sorted by time) to day
+      placed.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+      dayObj.slots = placed;
+    });
+
+    return timetable;
+  };
+
+  // ---------- Generate all divisions ----------
+  // Reset facultyBusy between different runs of the generator (function-scoped), but keep busy entries across divisions to avoid collisions
+  const allDivisions = Array.from({ length: numDivisions }, (_, i) => {
+    const name = `${branch}-Div-${String.fromCharCode(65 + i)}`;
+    const tt = createSingleTimetable(name);
+    return { name, timetable: tt };
   });
 
-  return timetable;
-};
-
-
-  // ====================== VARIANT GENERATION ======================
-  const totalStudyTime = normalized.reduce(
-    (acc, s) => acc + s.lectures * (s.durationPerLecture || 60),
-    0
-  );
-
-  const variant1 = createSingleTimetable("even"); // evenly spread
-  const variant2 = createSingleTimetable("front-heavy"); // busier start
-  const variant3 = createSingleTimetable("back-heavy"); // busier end
-
-  const generatedSchedules = [
-    { timetable: variant1 },
-    { timetable: variant2 },
-    { timetable: variant3 },
-  ];
-
+  // ---------- Return ----------
   return {
-    totalStudyTime,
-    generatedSchedules,
-    breakDetails,
+    branch,
+    numDivisions,
+    divisions: allDivisions,
+    totalStudyTime: subjects.reduce((sum, s) => sum + (s.totalDuration || 0), 0),
+    generatedSchedules: allDivisions.map((d) => ({ division: d.name, timetable: d.timetable })),
   };
 };
