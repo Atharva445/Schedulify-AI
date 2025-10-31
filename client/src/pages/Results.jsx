@@ -11,6 +11,8 @@ const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const timetable = location.state?.timetable;
+  const faculties = timetable?.faculties || [];
+
 
   console.log("📄 Timetable received in Results.jsx:", timetable);
 
@@ -128,13 +130,16 @@ const timetableData = hourlySlots.map(({ start, end }) => ({
     // 🟢 Lecture starts at this hour — render it
     const durationMins = timeToMinutes(covering.end) - timeToMinutes(covering.start);
     return {
-      subject: covering.subject,
-      duration: `${durationMins} min`,
-      color: covering.isLab ? "purple" : "indigo",
-      isLab: covering.isLab,
-      start: covering.start,
-      end: covering.end,
-    };
+    subject: covering.subject,
+    facultyId: covering.facultyId,
+    facultyName: covering.facultyName, // ✅ Pass it through!
+    duration: `${durationMins} min`,
+    color: covering.isLab ? "purple" : "indigo",
+    isLab: covering.isLab,
+    start: covering.start,
+    end: covering.end,
+};
+
   }),
 }));
 
@@ -198,7 +203,7 @@ const timetableData = hourlySlots.map(({ start, end }) => ({
         </div>
 
         {/* Timetable Grid */}
-        <TimetableGrid timetableData={timetableData} days={days} dates={dates} />
+        <TimetableGrid timetableData={timetableData} days={days} dates={dates} faculties={faculties}/>
 
         {/* Stats */}
         <div className="mt-8">

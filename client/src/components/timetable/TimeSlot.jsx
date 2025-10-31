@@ -1,4 +1,4 @@
-const TimeSlot = ({ slot }) => {
+const TimeSlot = ({ slot, faculties = [] }) => {
   if (!slot) {
     return <div className="p-2 border-l border-slate-800"></div>;
   }
@@ -83,13 +83,13 @@ const TimeSlot = ({ slot }) => {
             {slot.topic}
           </p>
         )}
-        
-        <div className="mt-2 flex items-center gap-1">
-          <div className={`w-1.5 h-1.5 rounded-full ${colors.dot}`}></div>
-          <span className={`text-xs ${colors.text} opacity-60`}>
-            {slot.priority} Priority
-          </span>
-        </div>
+        {/* Faculty Name */}
+        {slot.facultyName || (faculties.find(f => String(f.id) === String(slot.facultyId))?.name) ? (
+          <div className={`text-xs ${colors.text} opacity-70 italic`}>
+            Prof. {slot.facultyName || faculties.find(f => String(f.id) === String(slot.facultyId))?.name}
+          </div>
+        ) : null}
+
       </div>
     </div>
   );

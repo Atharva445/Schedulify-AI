@@ -1,7 +1,7 @@
 import TimeSlot from "./TimeSlot";
 import { Coffee } from "lucide-react";
 
-const TimetableGrid = ({ timetableData, days, dates }) => {
+const TimetableGrid = ({ timetableData, days, dates,faculties}) => {
   return (
     <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-3xl overflow-hidden overflow-x-auto">
       {/* Header Row */}
@@ -60,7 +60,7 @@ const TimetableGrid = ({ timetableData, days, dates }) => {
               // }
 
               // 🎓 Normal Lecture Slot
-              return <TimeSlot key={slotIndex} slot={slot} />;
+              return <TimeSlot key={slotIndex} slot={slot} faculties={faculties}/>;
             })}
           </div>
         ))}

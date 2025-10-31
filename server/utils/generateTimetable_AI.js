@@ -140,6 +140,7 @@ export const generateTimetable_AI = (data) => {
       const units = perDayUnits[dIndex] || [];
       let currentTime = start;
       const placed = [];
+      const skippedToday = []; // ✅ declare inside each day
 
       for (const u of units) {
         // if we already reached or exceeded end -> stop
@@ -165,6 +166,7 @@ export const generateTimetable_AI = (data) => {
         placed.push({
           subject: u.subject,
           facultyId: u.facultyId,
+          facultyName: faculties.find(f => String(f.id) === String(u.facultyId))?.name || null, // ✅ added
           duration: u.duration,
           isLab: u.isLab,
           blockType: u.blockType,
@@ -178,10 +180,12 @@ export const generateTimetable_AI = (data) => {
         // advance currentTime to after placed block
         currentTime = uEnd;
       }
-
       // assign placed sessions (sorted by time) to day
       placed.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
       dayObj.slots = placed;
+      if (skippedToday.length > 0 && dIndex < workingDaysPerWeek - 1) {
+        perDayUnits[dIndex + 1].push(...skippedToday);
+      }
     });
 
     return timetable;
@@ -203,4 +207,4 @@ export const generateTimetable_AI = (data) => {
     totalStudyTime: subjects.reduce((sum, s) => sum + (s.totalDuration || 0), 0),
     generatedSchedules: allDivisions.map((d) => ({ division: d.name, timetable: d.timetable })),
   };
-};
+};  
