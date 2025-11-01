@@ -1,7 +1,7 @@
 import TimeSlot from "./TimeSlot";
 import { Coffee } from "lucide-react";
 
-const TimetableGrid = ({ timetableData, days, dates,faculties}) => {
+const TimetableGrid = ({ timetableData, days, dates, faculties }) => {
   return (
     <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-3xl overflow-hidden overflow-x-auto">
       {/* Header Row */}
@@ -11,10 +11,7 @@ const TimetableGrid = ({ timetableData, days, dates,faculties}) => {
         </div>
 
         {days.map((day, index) => (
-          <div
-            key={day}
-            className="p-4 text-center border-l border-slate-800"
-          >
+          <div key={day} className="p-4 text-center border-l border-slate-800">
             <span className="text-sm font-semibold text-slate-200">
               {day}
             </span>
@@ -42,25 +39,31 @@ const TimetableGrid = ({ timetableData, days, dates,faculties}) => {
                   ></div>
                 );
 
-              // ☕ If this is a break slot
-              // if (slot.isBreak) {
-              //   return (
-              //     <div
-              //       key={slotIndex}
-              //       className="border-l border-slate-800 p-2 flex items-center justify-center"
-              //     >
-              //       <div className="w-full h-full bg-slate-800/40 border border-slate-700 rounded-xl p-3 flex items-center justify-center text-slate-400 gap-2">
-              //         <Coffee className="w-4 h-4" />
-              //         <span className="text-sm font-medium">
-              //           Break ({slot.start} - {slot.end})
-              //         </span>
-              //       </div>
-              //     </div>
-              //   );
-              // }
+              // ☕ If this is a break slot → render special gray card
+              if (slot.isBreak) {
+                return (
+                  <div
+                    key={slotIndex}
+                    className="border-l border-slate-800 p-2 flex items-center justify-center"
+                  >
+                    <div className="w-full h-full bg-slate-800/40 border border-slate-700 rounded-xl p-3 flex items-center justify-center text-slate-400 gap-2">
+                      <Coffee className="w-4 h-4 text-amber-400" />
+                      <span className="text-sm font-medium text-slate-300">
+                        Break ({slot.start} - {slot.end})
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
 
               // 🎓 Normal Lecture Slot
-              return <TimeSlot key={slotIndex} slot={slot} faculties={faculties}/>;
+              return (
+                <TimeSlot
+                  key={slotIndex}
+                  slot={slot}
+                  faculties={faculties}
+                />
+              );
             })}
           </div>
         ))}
