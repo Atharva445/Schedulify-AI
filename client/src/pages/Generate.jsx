@@ -350,15 +350,17 @@ const handleNext = async () => {
     // POST to backend
     const response = await axios.post(
       "http://localhost:5000/api/timetable/generate",
-      payload,
-      {
-        headers: { "Content-Type": "application/json" },
-        withCredentials: false,
-      }
+      payload
     );
 
     console.log("✅ Timetable generated:", response.data);
-    navigate("/results", { state: { timetable: response.data } });
+
+    navigate("/results", {
+      state: {
+        data: response.data.data   // 🔥 THIS IS THE KEY FIX
+      }
+    });
+
   } catch (error) {
     console.error("❌ Timetable generation failed:", error);
     alert(

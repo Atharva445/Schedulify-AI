@@ -1,105 +1,57 @@
-// import mongoose from "mongoose";
-
-// const subjectSchema = new mongoose.Schema({
-//   name: { type: String, required: true },
-//   lectures: { type: Number, required: true },
-//   durationPerLecture: { type: Number, required: true }, // in minutes
-//   totalDuration: { type: Number, required: true }, // calculated field (lectures * duration)
-// });
-
-// const timetableSchema = new mongoose.Schema(
-//   {
-//     // 🧠 Basic user/session info
-//     userId: { type: String, required: false }, // if login added later
-//     createdAt: { type: Date, default: Date.now },
-
-//     // 📚 Subjects / Tasks
-//     subjects: [subjectSchema],
-
-//     // ⏰ Schedule Settings
-//     startTime: { type: String, required: true }, // e.g., "09:00"
-//     endTime: { type: String, required: true },   // e.g., "17:00"
-//     availableHoursPerDay: { type: Number, required: true }, // e.g., 8
-//     workingDaysPerWeek: { type: Number, required: true },    // e.g., 5
-
-//     // 🧩 Preferences
-//     breakDuration: { type: Number, default: 30 }, // in minutes
-//     difficultyLevel: { type: Number, default: 3, min: 1, max: 5 },
-
-//     // 🧠 AI-generated timetable result
-//     generatedSchedules: [
-//       {
-//         scheduleId: { type: String },
-//         days: [
-//           {
-//             day: { type: String }, // e.g., "Monday"
-//             slots: [
-//               {
-//                 start: { type: String }, // "09:00"
-//                 end: { type: String },   // "10:00"
-//                 subject: { type: String },
-//                 break: { type: Boolean, default: false },
-//               },
-//             ],
-//           },
-//         ],
-//       },
-//     ],
-
-//     // 📊 Summary
-//     totalStudyDuration: { type: Number, required: true }, // total across all subjects (in minutes)
-//     totalSubjects: { type: Number, required: true },
-//   },
-//   { timestamps: true }
-// );
-
-// export default mongoose.model("Timetable", timetableSchema);
 import mongoose from "mongoose";
 
-// 🎯 Schema for each time slot in the timetable
+/* ---------- SLOT ---------- */
 const slotSchema = new mongoose.Schema({
-  subject: { type: String, required: true },
-  start: { type: String, required: true },
-  end: { type: String, required: true },
+  subject: String,
+  facultyId: Number,
+  facultyName: String,
+  isLab: Boolean,
+  blockType: String,
+  start: String,
+  end: String,
 });
 
-// 🎯 Schema for each day (like Day 1, Day 2...)
+/* ---------- DAY ---------- */
 const daySchema = new mongoose.Schema({
-  day: { type: String, required: true },
-  slots: [slotSchema], // Array of slot objects
+  day: String,
+  slots: [slotSchema],
 });
 
-// 🎯 Schema for generated timetable schedule
-const generatedScheduleSchema = new mongoose.Schema({
-  totalStudyTime: { type: Number, required: true },
+/* ---------- DIVISION TIMETABLE ---------- */
+const divisionScheduleSchema = new mongoose.Schema({
+  division: String,
   timetable: [daySchema],
 });
 
-// 🎯 Main Timetable Schema
+/* ---------- MAIN SCHEMA ---------- */
 const timetableSchema = new mongoose.Schema(
   {
+    // Admin input snapshot
+    startTime: String,
+    endTime: String,
+    workingDaysPerWeek: Number,
+    breaks: [{ start: String, end: String }],
+    difficultyLevel: Number,
+
+    // Subjects entered ONCE
     subjects: [
       {
-        name: { type: String, required: true },
-        lectures: { type: Number, default: 0 },
-        durationPerLecture: { type: Number, default: 0 },
-        totalDuration: { type: Number, required: true },
+        name: String,
+        facultyId: Number,
+        facultyName: String,
+        lectures: Number,
+        isLab: Boolean,
+        labBlocks: Number,
       },
     ],
-    startTime: { type: String, required: true },
-    endTime: { type: String, required: true },
-    availableHoursPerDay: { type: Number, required: true },
-    workingDaysPerWeek: { type: Number, required: true },
-    breakDuration: { type: Number, default: 30 },
-    difficultyLevel: { type: Number, default: 3 },
 
-    totalStudyDuration: { type: Number, required: true },
-    totalSubjects: { type: Number, required: true },
+    // Generated output
+    generatedSchedules: [divisionScheduleSchema],
 
-    generatedSchedules: [generatedScheduleSchema],
+    totalStudyDuration: Number,
+    totalSubjects: Number,
   },
   { timestamps: true }
 );
 
-// 🎯 Export model
 export default mongoose.model("Timetable", timetableSchema);

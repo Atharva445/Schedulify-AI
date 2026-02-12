@@ -1,161 +1,231 @@
-export const generateTimetable = (data) => {
+// server/utils/generateTimetable.js
+
+/* ======================================================
+   HELPERS
+   ====================================================== */
+
+const shuffle = (arr) => {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
+const toMinutes = (t) => {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+};
+
+const toTime = (mins) => {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h.toString().padStart(2, "0")}:${m
+    .toString()
+    .padStart(2, "0")}`;
+};
+
+/* ======================================================
+   MAIN CSP TIMETABLE GENERATOR
+   ====================================================== */
+
+export function generateTimetable(data) {
   const {
-    subjects = [],
-    startTime = "09:00",
-    endTime = "17:00",
-    workingDaysPerWeek = 5,
-    breakDuration = 30,
-  } = data || {};
+    divisions,
+    startTime,
+    endTime,
+    workingDaysPerWeek,
+  } = data;
 
-  // Helpers
-  const addMinutes = (time, mins) => {
-    const [h, m] = time.split(":").map(Number);
-    const d = new Date(0, 0, 0, h, m);
-    d.setMinutes(d.getMinutes() + mins);
-    return d.toTimeString().slice(0, 5);
-  };
-  const timeToMinutes = (t) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + m;
-  };
+  const SLOT_DURATION = 60;
+  const dayStart = toMinutes(startTime);
+  const dayEnd = toMinutes(endTime);
+  const slotsPerDay = Math.floor((dayEnd - dayStart) / SLOT_DURATION);
 
-  const normalizeTime = (time) => {
-    let [h, m] = time.split(":").map(Number);
-    if (h >= 1 && h <= 7) h += 12; // handle 04:00 → 16:00
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-  };
+  const days = Array.from({ length: workingDaysPerWeek }, (_, i) => i);
+  const slots = Array.from({ length: slotsPerDay }, (_, i) => i);
 
-  const start = normalizeTime(startTime);
-  const end = normalizeTime(endTime);
+  /* ======================================================
+     STEP 1: BUILD EVENT POOL (ONCE, NO DUPLICATION)
+     ====================================================== */
 
-  const dayStart = timeToMinutes(start);
-  const dayEnd = timeToMinutes(end);
-  const minutesPerDay = dayEnd - dayStart;
-  const slotDuration = 60;
-  const slotsPerDay = Math.floor(minutesPerDay / (slotDuration + breakDuration));
+  const events = [];
 
-  // Normalize subjects
-  const normalized = subjects.map((s) => ({
-    ...s,
-    duration: s.durationPerLecture || 60,
-    lectures:
-      s.lectures ||
-      Math.floor((s.totalDuration || 0) / (s.durationPerLecture || 60)) ||
-      1,
-    isLab: /lab/i.test(s.name),
-  }));
-
-  const labs = normalized.filter((s) => s.isLab);
-  const others = normalized.filter((s) => !s.isLab);
-
-  // Timetable skeleton
-  const timetable = Array.from({ length: workingDaysPerWeek }, (_, i) => ({
-    day: `Day ${i + 1}`,
-    slots: [],
-  }));
-
-  // STEP 1️⃣: Place LABS (always morning + in pairs)
-  labs.forEach((lab, labIndex) => {
-    let remaining = lab.lectures;
-    let dayIdx = labIndex % workingDaysPerWeek;
-
-    while (remaining > 0) {
-      const blockSize = remaining >= 2 ? 2 : 1;
-      const block = Array.from({ length: blockSize }, () => ({
-        subject: lab.name,
-        duration: lab.duration,
-        isLab: true,
-      }));
-
-      // Find a day for labs — only first two morning slots allowed
-      let placed = false;
-      for (let tries = 0; tries < workingDaysPerWeek && !placed; tries++) {
-        const day = (dayIdx + tries) % workingDaysPerWeek;
-        const slots = timetable[day].slots;
-
-        const noAdjacentLab =
-          slots.length === 0 || !slots[slots.length - 1]?.isLab;
-        const canFit = slots.length + blockSize <= slotsPerDay;
-
-        // Labs should be placed in the first 2–3 slots ideally
-        if (noAdjacentLab && canFit && slots.length < 3) {
-          timetable[day].slots.push(...block);
-          placed = true;
+  divisions.forEach((division) => {
+    division.subjects.forEach((sub) => {
+      if (sub.isLab) {
+        // for (let i = 0; i < sub.labBlocks; i++) {
+          events.push({
+            type: "LAB",
+            division: division.name,
+            subject: sub.name,
+            facultyId: sub.facultyId,
+            blocks: sub.labBlocks, // 2 consecutive 1-hr slots
+          });
+        // }
+      } else {
+        for (let i = 0; i < sub.lectures; i++) {
+          events.push({
+            type: "THEORY",
+            division: division.name,
+            subject: sub.name,
+            facultyId: sub.facultyId,
+            blocks: 1,
+          });
         }
       }
-
-      remaining -= blockSize;
-      dayIdx++;
-    }
+    });
   });
 
-  // STEP 2️⃣: Prepare theory sessions list
-  const theoryQueue = [];
-  others.forEach((s) => {
-    for (let i = 0; i < s.lectures; i++) {
-      theoryQueue.push({ subject: s.name, duration: s.duration, isLab: false });
-    }
+  /* ======================================================
+     STEP 2: GLOBAL TIMETABLE STRUCTURE
+     timetable[day][slot][division] = event | null
+     ====================================================== */
+
+  const timetable = {};
+  const facultyBusy = {}; // facultyId -> day -> slot -> true
+
+  days.forEach((d) => {
+    timetable[d] = {};
+    slots.forEach((s) => {
+      timetable[d][s] = {};
+      divisions.forEach((div) => {
+        timetable[d][s][div.name] = null;
+      });
+    });
   });
 
-  // Shuffle theory sessions to improve variety
-  theoryQueue.sort(() => Math.random() - 0.5);
+  const isFacultyFree = (fid, d, s) =>
+    !facultyBusy[fid]?.[d]?.[s];
 
-  // STEP 3️⃣: Place theory subjects avoiding consecutive-day repeats
-  const lastSubjectOnDay = Array(workingDaysPerWeek).fill(null);
+  const markFacultyBusy = (fid, d, s) => {
+    facultyBusy[fid] ??= {};
+    facultyBusy[fid][d] ??= {};
+    facultyBusy[fid][d][s] = true;
+  };
 
-  let index = 0;
-  while (index < theoryQueue.length) {
-    const session = theoryQueue[index];
+  /* ======================================================
+     STEP 3: PRIORITIZE + RANDOMIZE EVENTS
+     ====================================================== */
+
+  const labs = events.filter(e => e.type === "LAB");
+  const theory = events.filter(e => e.type === "THEORY");
+
+  shuffle(labs);
+  shuffle(theory);
+
+  const eventQueue = [...labs, ...theory];
+
+  /* ======================================================
+     STEP 4: CSP SLOT-FIRST ASSIGNMENT
+     ====================================================== */
+
+  for (const event of eventQueue) {
     let placed = false;
 
-    // Try to distribute fairly across days
-    const shuffledDays = Array.from({ length: workingDaysPerWeek }, (_, i) => i)
-      .sort(() => Math.random() - 0.5);
+    const shuffledDays = shuffle([...days]);
+    const shuffledSlots = shuffle([...slots]);
 
-    for (let d of shuffledDays) {
-      const slots = timetable[d].slots;
-      if (
-        slots.length < slotsPerDay &&
-        lastSubjectOnDay[d] !== session.subject &&
-        !slots.some((s) => s.subject === session.subject)
-      ) {
-        timetable[d].slots.push(session);
-        lastSubjectOnDay[d] = session.subject;
-        placed = true;
-        break;
+    for (const d of shuffledDays) {
+      if (placed) break;
+
+      for (const s of shuffledSlots) {
+        if (placed) break;
+
+        // Check slot availability for division
+        if (timetable[d][s][event.division] !== null) continue;
+
+        // LAB: needs consecutive slot
+        if (event.blocks === 2) {
+          if (s + 1 >= slotsPerDay) continue;
+          if (
+            timetable[d][s + 1][event.division] !== null ||
+            !isFacultyFree(event.facultyId, d, s) ||
+            !isFacultyFree(event.facultyId, d, s + 1)
+          ) continue;
+
+          // PLACE LAB
+          timetable[d][s][event.division] = event;
+          timetable[d][s + 1][event.division] = event;
+
+          markFacultyBusy(event.facultyId, d, s);
+          markFacultyBusy(event.facultyId, d, s + 1);
+
+          placed = true;
+        }
+
+        // THEORY
+        else {
+          if (!isFacultyFree(event.facultyId, d, s)) continue;
+
+          // avoid same subject back-to-back
+          if (
+            s > 0 &&
+            timetable[d][s - 1][event.division]?.subject === event.subject
+          ) continue;
+
+          timetable[d][s][event.division] = event;
+          markFacultyBusy(event.facultyId, d, s);
+
+          placed = true;
+        }
       }
     }
 
     if (!placed) {
-      // If all days are blocked, just place in the first day with space
-      for (let d = 0; d < workingDaysPerWeek && !placed; d++) {
-        if (timetable[d].slots.length < slotsPerDay) {
-          timetable[d].slots.push(session);
-          lastSubjectOnDay[d] = session.subject;
-          placed = true;
-        }
-      }
+      throw new Error(
+        `❌ CSP failed: cannot place ${event.subject} (${event.type}) for ${event.division}`
+      );
     }
-
-    index++;
   }
 
-  // STEP 4️⃣: Assign time slots to all sessions
-  timetable.forEach((dayObj) => {
-    let currentTime = start;
-    dayObj.slots = dayObj.slots.map((slot) => {
-      const start = currentTime;
-      const end = addMinutes(start, slot.duration);
-      currentTime = addMinutes(end, breakDuration);
-      return { ...slot, start, end };
+  /* ======================================================
+     STEP 5: CONVERT GRID → API OUTPUT
+     ====================================================== */
+
+  const generatedSchedules = divisions.map((div) => {
+    const tt = days.map((d) => {
+      const slotsOut = [];
+
+      slots.forEach((s) => {
+        const e = timetable[d][s][div.name];
+        if (!e) return;
+
+        const start = dayStart + s * SLOT_DURATION;
+        const end = start + SLOT_DURATION;
+
+        slotsOut.push({
+          subject: e.subject,
+          facultyId: e.facultyId,
+          isLab: e.type === "LAB",
+          blockType: e.type === "LAB" ? "lab-hour" : "theory",
+          duration: 60,
+          start: toTime(start),
+          end: toTime(end),
+        });
+      });
+
+      return {
+        day: `Day ${d + 1}`,
+        slots: slotsOut,
+      };
     });
+
+    return {
+      division: div.name,
+      timetable: tt,
+    };
   });
 
-  // STEP 5️⃣: Total study time
-  const totalStudyTime = normalized.reduce(
-    (acc, s) => acc + s.lectures * (s.durationPerLecture || 60),
-    0
-  );
+  /* ======================================================
+     FINAL RESPONSE
+     ====================================================== */
 
-  return { totalStudyTime, timetable };
-};
+  return {
+    totalStudyTime: events.reduce(
+      (a, e) => a + e.blocks * 60,
+      0
+    ),
+    generatedSchedules,
+  };
+}
