@@ -1,7 +1,7 @@
 import express from "express";
 import { createTimetable, createTimetableAI } from "../controllers/timetableController.js";
 // import { protect, adminOnly, teacherOnly, studentOnly } from "../middleware/auth.js";
-import {getAllTimetables,getTeacherTimetable,getStudentTimetable,getTimetablesByRole} from "../controllers/timetableController.js";
+import {getAllTimetables,getTeacherTimetable,getStudentTimetable,getTimetablesByRole,getTimetableByBranchYear} from "../controllers/timetableController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 import axios from "../utils/axiosConfig.js";
 
@@ -35,6 +35,7 @@ router.get(
   getTimetablesByRole
 );
 
+router.get("/", protect, getTimetableByBranchYear);
 
 // ✅ AI-based timetable (optional / future)
 router.post("/generate-ai", createTimetableAI);

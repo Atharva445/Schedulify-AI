@@ -68,7 +68,6 @@ export function validateInput(data) {
     return { start: bs, end: be };
   });
 
-  // Check overlapping breaks
   breakIntervals.sort((a, b) => a.start - b.start);
   for (let i = 1; i < breakIntervals.length; i++) {
     if (breakIntervals[i].start < breakIntervals[i - 1].end) {
@@ -78,31 +77,32 @@ export function validateInput(data) {
 
   /* ---------------- DIVISIONS ---------------- */
 
-  // divisions MUST exist AFTER normalization
-// if (!data.divisions) {
-//   throw new Error("Internal error: divisions not normalized");
-// }
+  if (!Array.isArray(divisions) || divisions.length === 0) {
+    throw new Error("At least one division is required");
+  }
 
-if (!Array.isArray(data.divisions) || data.divisions.length === 0) {
-  throw new Error("At least one division is required");
-}
-
-
-  /* ---------------- FACULTY LIST ---------------- */
+  /* ---------------- FACULTY LIST (FIXED) ---------------- */
 
   if (!Array.isArray(faculties) || faculties.length === 0) {
     throw new Error("Faculty list is required");
   }
 
   const facultyIds = new Set();
+
   faculties.forEach((f) => {
-    if (!f.id || !f.name) {
+    if (
+      typeof f.facultyId !== "number" ||
+      !f.name ||
+      f.name.trim() === ""
+    ) {
       throw new Error("Each faculty must have id and name");
     }
-    if (facultyIds.has(f.id)) {
-      throw new Error(`Duplicate faculty id found: ${f.id}`);
+
+    if (facultyIds.has(f.facultyId)) {
+      throw new Error(`Duplicate faculty id found: ${f.facultyId}`);
     }
-    facultyIds.add(f.id);
+
+    facultyIds.add(f.facultyId);
   });
 
   /* ---------------- SUBJECT VALIDATION PER DIVISION ---------------- */
@@ -161,7 +161,7 @@ if (!Array.isArray(data.divisions) || data.divisions.length === 0) {
 
     div.subjects.forEach((s) => {
       if (s.isLab) {
-        requiredSlots += s.labBlocks * 2; // each lab block = 2 slots
+        requiredSlots += s.labBlocks * 2;
       } else {
         requiredSlots += s.lectures;
       }
@@ -175,8 +175,6 @@ if (!Array.isArray(data.divisions) || data.divisions.length === 0) {
       );
     }
   });
-
-  /* ---------------- PASSED ---------------- */
 
   return true;
 }

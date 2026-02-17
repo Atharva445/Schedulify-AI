@@ -24,6 +24,7 @@ export const createTimetable = async (req, res) => {
 
     await Timetable.create({
       branch: req.body.branch,
+      year: req.body.year,
       divisions: normalizedData.divisions,
       generatedSchedules: generated.generatedSchedules,
       totalStudyTime: generated.totalStudyTime
@@ -45,51 +46,47 @@ export const createTimetable = async (req, res) => {
 export const getTimetablesByRole = async (req, res) => {
   try {
     const user = req.user;
+    const { branch, year } = req.query;
 
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
-    }
+    let filter = {};
 
-    // 🟢 ADMIN → can see everything
+    if (branch) filter.branch = branch;
+    if (year) filter.year = Number(year);
+
+    const timetables = await Timetable.find(filter);
+
+    // ADMIN FILTER SUPPORT
     if (user.role === "admin") {
-      const timetables = await Timetable.find();
+      const { branch, year } = req.query;
+
+      const filter = {};
+      if (branch) filter.branch = branch;
+      if (year) filter.year = Number(year);
+
+      const timetables = await Timetable.find(filter).sort({ createdAt: -1 });
+
       return res.json({ success: true, data: timetables });
     }
 
-    // 🟢 TEACHER → only their lectures
+
     if (user.role === "teacher") {
-  const timetables = await Timetable.find();
+      const filtered = timetables.map((tt) => ({
+        ...tt._doc,
+        generatedSchedules: tt.generatedSchedules.map((division) => ({
+          ...division,
+          timetable: division.timetable.map((day) => ({
+            ...day,
+            slots: day.slots.filter(
+              (slot) => slot.facultyId == user.facultyId
+            ),
+          })),
+        })),
+      }));
 
-  const filtered = timetables.map((tt) => {
-    return {
-      ...tt._doc,
-      generatedSchedules: tt.generatedSchedules.map((division) => {
-        return {
-          division: division.division,
-          timetable: division.timetable
-            .map((day) => {
-              return {
-                day: day.day,
-                slots: day.slots.filter(
-                  (slot) =>
-                    Number(slot.facultyId) === Number(user.facultyId)
-                ),
-              };
-            })
-            .filter((day) => day.slots.length > 0),
-        };
-      }).filter((div) => div.timetable.length > 0),
-    };
-  });
+      return res.json({ success: true, data: filtered });
+    }
 
-  return res.json({ success: true, data: filtered });
-}
-
-
-    // 🟢 STUDENT → only their division
     if (user.role === "student") {
-      const timetables = await Timetable.find();
-
       const filtered = timetables.map((tt) => ({
         ...tt._doc,
         generatedSchedules: tt.generatedSchedules.filter(
@@ -101,10 +98,12 @@ export const getTimetablesByRole = async (req, res) => {
     }
 
     res.status(403).json({ message: "Access denied" });
+
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
+
 
 export const getAllTimetables = async (req, res) => {
   try {
@@ -118,6 +117,29 @@ export const getAllTimetables = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
+export const getTimetableByBranchYear = async (req, res) => {
+  try {
+    const { branch, year } = req.query;
+
+    const timetable = await Timetable.find({
+      branch,
+      year,
+    });
+
+    res.json({
+      success: true,
+      data: timetable,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 
 export const getTeacherTimetable = async (req, res) => {
   try {

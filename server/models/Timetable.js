@@ -26,14 +26,25 @@ const divisionScheduleSchema = new mongoose.Schema({
 /* ---------- MAIN SCHEMA ---------- */
 const timetableSchema = new mongoose.Schema(
   {
-    // Admin input snapshot
+    /* 🔥 NEW: Academic Structure */
+    branch: {
+      type: String,
+      required: true,
+    },
+
+    year: {
+      type: Number, // 1,2,3,4
+      required: true,
+    },
+
+    /* 🔹 Admin input snapshot */
     startTime: String,
     endTime: String,
     workingDaysPerWeek: Number,
     breaks: [{ start: String, end: String }],
     difficultyLevel: Number,
 
-    // Subjects entered ONCE
+    /* 🔹 Subjects entered once */
     subjects: [
       {
         name: String,
@@ -45,7 +56,7 @@ const timetableSchema = new mongoose.Schema(
       },
     ],
 
-    // Generated output
+    /* 🔹 Generated Output */
     generatedSchedules: [divisionScheduleSchema],
 
     totalStudyDuration: Number,

@@ -1,6 +1,3 @@
-import TimeSlot from "./TimeSlot";
-import { Coffee } from "lucide-react";
-
 const TimetableGrid = ({ timetable }) => {
   if (!timetable || timetable.length === 0) {
     return (
@@ -10,11 +7,7 @@ const TimetableGrid = ({ timetable }) => {
     );
   }
 
-  /* ------------------------------
-     🔥 TRANSFORM BACKEND DATA
-     ------------------------------ */
-
-  // Collect all unique time ranges
+  // 🔹 Collect all unique time slots
   const timeSet = new Set();
 
   timetable.forEach((day) => {
@@ -23,97 +16,82 @@ const TimetableGrid = ({ timetable }) => {
     });
   });
 
-  const timeRows = Array.from(timeSet).sort();
+  const timeSlots = Array.from(timeSet).sort();
 
   const days = timetable.map((d) => d.day);
 
-  const gridData = timeRows.map((time) => {
-    return {
-      time,
-      slots: timetable.map((day) => {
-        return day.slots.find(
-          (s) => `${s.start}-${s.end}` === time
-        ) || null;
-      }),
-    };
-  });
+  // 🔹 Helper to find slot for a day & time
+  const getSlot = (dayName, time) => {
+    const dayObj = timetable.find((d) => d.day === dayName);
+    if (!dayObj) return null;
 
-  /* ------------------------------
-     🧠 RENDER
-     ------------------------------ */
+    return dayObj.slots.find(
+      (s) => `${s.start}-${s.end}` === time
+    );
+  };
 
   return (
-    <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-3xl overflow-x-auto">
-      
-      {/* HEADER */}
+    <div className="overflow-x-auto bg-slate-900 rounded-xl border border-slate-800">
       <div
-        className="grid border-b border-slate-800 min-w-[900px]"
-        style={{ gridTemplateColumns: `120px repeat(${days.length}, 1fr)` }}
+        className="grid min-w-[900px]"
+        style={{
+          gridTemplateColumns: `120px repeat(${days.length}, 1fr)`
+        }}
       >
-        <div className="p-4 bg-slate-800/30 text-sm font-medium text-slate-400">
+        {/* HEADER ROW */}
+        <div className="p-3 font-semibold text-slate-400 border-b border-slate-800">
           Time
         </div>
 
         {days.map((day) => (
           <div
             key={day}
-            className="p-4 text-center border-l border-slate-800"
+            className="p-3 text-center font-semibold border-b border-l border-slate-800 text-slate-200"
           >
-            <div className="text-sm font-semibold text-slate-200">
-              {day}
-            </div>
+            {day}
           </div>
         ))}
-      </div>
 
-      {/* BODY */}
-      <div className="divide-y divide-slate-800 min-w-[900px]">
-        {gridData.map((row, rowIndex) => (
-          <div
-            key={rowIndex}
-            className="grid"
-            style={{ gridTemplateColumns: `120px repeat(${days.length}, 1fr)` }}
-          >
+        {/* TIME ROWS */}
+        {timeSlots.map((time) => (
+          <>
             {/* Time column */}
-            <div className="p-4 bg-slate-800/10 flex items-center justify-center">
-              <span className="text-sm text-slate-400">
-                {row.time}
-              </span>
+            <div
+              key={time}
+              className="p-3 text-sm text-slate-400 border-t border-slate-800"
+            >
+              {time}
             </div>
 
-            {/* Day slots */}
-            {row.slots.map((slot, colIndex) => {
-              if (!slot) {
-                return (
-                  <div
-                    key={colIndex}
-                    className="border-l border-slate-800"
-                  />
-                );
-              }
-
-              if (slot.isBreak) {
-                return (
-                  <div
-                    key={colIndex}
-                    className="border-l border-slate-800 p-2 flex items-center justify-center"
-                  >
-                    <div className="w-full h-full bg-slate-800/40 border border-slate-700 rounded-xl flex items-center justify-center gap-2 text-slate-300 text-sm">
-                      <Coffee className="w-4 h-4 text-amber-400" />
-                      Break
-                    </div>
-                  </div>
-                );
-              }
+            {/* Day columns */}
+            {days.map((day) => {
+              const slot = getSlot(day, time);
 
               return (
-                <TimeSlot
-                  key={colIndex}
-                  slot={slot}
-                />
+                <div
+                  key={`${day}-${time}`}
+                  className="border-l border-t border-slate-800 p-2"
+                >
+                  {slot ? (
+                    <div
+                      className={`p-2 rounded text-xs font-medium text-white ${
+                        slot.isLab
+                          ? "bg-purple-600"
+                          : "bg-blue-600"
+                      }`}
+                    >
+                      <div>{slot.subject}</div>
+                      <div className="text-[10px] opacity-80">
+                        Faculty: {slot.facultyId}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-10" />
+                  )}
+                </div>
               );
             })}
-          </div>
+          </>
         ))}
       </div>
     </div>
