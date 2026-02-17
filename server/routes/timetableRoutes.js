@@ -3,6 +3,7 @@ import { createTimetable, createTimetableAI } from "../controllers/timetableCont
 // import { protect, adminOnly, teacherOnly, studentOnly } from "../middleware/auth.js";
 import {getAllTimetables,getTeacherTimetable,getStudentTimetable,getTimetablesByRole} from "../controllers/timetableController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
+import axios from "../utils/axiosConfig.js";
 
 const router = express.Router();
 

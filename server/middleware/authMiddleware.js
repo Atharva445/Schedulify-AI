@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import axios from "../utils/axiosConfig.js";
 
 export const protect = async (req, res, next) => {
   try {

@@ -1,8 +1,8 @@
 import TimeSlot from "./TimeSlot";
 import { Coffee } from "lucide-react";
 
-const TimetableGrid = ({ timetableData, days, dates }) => {
-  if (!timetableData || timetableData.length === 0) {
+const TimetableGrid = ({ timetable }) => {
+  if (!timetable || timetable.length === 0) {
     return (
       <div className="text-center text-slate-400 py-10">
         No timetable data available
@@ -10,10 +10,42 @@ const TimetableGrid = ({ timetableData, days, dates }) => {
     );
   }
 
+  /* ------------------------------
+     🔥 TRANSFORM BACKEND DATA
+     ------------------------------ */
+
+  // Collect all unique time ranges
+  const timeSet = new Set();
+
+  timetable.forEach((day) => {
+    day.slots.forEach((slot) => {
+      timeSet.add(`${slot.start}-${slot.end}`);
+    });
+  });
+
+  const timeRows = Array.from(timeSet).sort();
+
+  const days = timetable.map((d) => d.day);
+
+  const gridData = timeRows.map((time) => {
+    return {
+      time,
+      slots: timetable.map((day) => {
+        return day.slots.find(
+          (s) => `${s.start}-${s.end}` === time
+        ) || null;
+      }),
+    };
+  });
+
+  /* ------------------------------
+     🧠 RENDER
+     ------------------------------ */
+
   return (
     <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-3xl overflow-x-auto">
       
-      {/* ================= HEADER ROW ================= */}
+      {/* HEADER */}
       <div
         className="grid border-b border-slate-800 min-w-[900px]"
         style={{ gridTemplateColumns: `120px repeat(${days.length}, 1fr)` }}
@@ -22,7 +54,7 @@ const TimetableGrid = ({ timetableData, days, dates }) => {
           Time
         </div>
 
-        {days.map((day, index) => (
+        {days.map((day) => (
           <div
             key={day}
             className="p-4 text-center border-l border-slate-800"
@@ -30,16 +62,13 @@ const TimetableGrid = ({ timetableData, days, dates }) => {
             <div className="text-sm font-semibold text-slate-200">
               {day}
             </div>
-            <div className="text-xs text-slate-500 mt-1">
-              {dates[index]}
-            </div>
           </div>
         ))}
       </div>
 
-      {/* ================= TIME ROWS ================= */}
+      {/* BODY */}
       <div className="divide-y divide-slate-800 min-w-[900px]">
-        {timetableData.map((row, rowIndex) => (
+        {gridData.map((row, rowIndex) => (
           <div
             key={rowIndex}
             className="grid"
@@ -63,7 +92,6 @@ const TimetableGrid = ({ timetableData, days, dates }) => {
                 );
               }
 
-              // ☕ BREAK CELL
               if (slot.isBreak) {
                 return (
                   <div
@@ -78,7 +106,6 @@ const TimetableGrid = ({ timetableData, days, dates }) => {
                 );
               }
 
-              // 🎓 NORMAL SLOT
               return (
                 <TimeSlot
                   key={colIndex}

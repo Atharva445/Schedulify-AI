@@ -3,6 +3,7 @@ import { generateTimetable } from "../utils/generateTimetable.js";
 import { generateTimetable_AI } from "../utils/generateTimetable_AI.js";
 import { validateInput } from "../utils/validateInput.js";
 import { normalizeAdminInput } from "../utils/normalizeAdminInput.js";
+import axios from "../utils/axiosConfig.js";
 
 /* ---------------- RULE-BASED TIMETABLE ---------------- */
 export const createTimetable = async (req, res) => {

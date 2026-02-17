@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import axios from "../utils/axiosConfig.js";
 
 /* ---------------- AUTHENTICATE USER ---------------- */
 export const protect = async (req, res, next) => {
