@@ -25,7 +25,7 @@ const StudentDashboard = () => {
           <h2 className="text-xl mb-2">
             {division.division}
           </h2>
-          <TimetableGrid timetable={division.timetable} />
+          <TimetableGrid timetable={division.timetable} timetableId={timetable._id}/>
         </>
       )}
     </div>

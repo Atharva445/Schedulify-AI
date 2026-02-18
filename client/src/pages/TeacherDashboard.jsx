@@ -27,7 +27,7 @@ const TeacherDashboard = () => {
               {division.division}
             </h2>
 
-            <TimetableGrid timetable={division.timetable} />
+            <TimetableGrid timetable={division.timetable} timetableId={tt._id} divisionName={division.division}/>
           </div>
         ))
       )}

@@ -7,7 +7,20 @@ import axios from "../utils/axiosConfig.js";
 
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, division, facultyId } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      branch,
+      year,
+      division,
+      facultyId,
+    } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: "All required fields missing" });
+    }
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -21,6 +34,8 @@ export const registerUser = async (req, res) => {
       email,
       password: hashedPassword,
       role,
+      branch,
+      year,
       division,
       facultyId,
     });
@@ -34,6 +49,7 @@ export const registerUser = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
 
 
 /* ---------------- LOGIN (JWT GENERATED HERE) ---------------- */
@@ -53,27 +69,30 @@ export const loginUser = async (req, res) => {
     }
 
     const token = jwt.sign(
-    {
+      {
         id: user._id,
         role: user.role,
+        branch: user.branch,
+        year: user.year,
         division: user.division,
-        facultyId: user.facultyId
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" }
+        facultyId: user.facultyId,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
     );
 
-
     res.json({
-    success: true,
-    token,
-    role: user.role,
-    division: user.division,
-    facultyId: user.facultyId
+      success: true,
+      token,
+      role: user.role,
+      branch: user.branch,
+      year: user.year,
+      division: user.division,
+      facultyId: user.facultyId,
     });
-
 
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
+

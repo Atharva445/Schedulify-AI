@@ -172,31 +172,27 @@ export const getTeacherTimetable = async (req, res) => {
 
 export const getStudentTimetable = async (req, res) => {
   try {
-    const studentDivision = req.user.division;
+    const user = req.user;
 
-    const timetable = await Timetable.findOne().sort({ createdAt: -1 });
+    const timetable = await Timetable.findOne({
+      branch: user.branch,
+      year: user.year,
+    }).sort({ createdAt: -1 });
 
     if (!timetable) {
       return res.status(404).json({ message: "No timetable found" });
     }
 
-    const divisionSchedule = timetable.generatedSchedules.find(
-      schedule => schedule.division === studentDivision
-    );
-
-    if (!divisionSchedule) {
-      return res.status(404).json({ message: "Division timetable not found" });
-    }
-
     res.json({
       success: true,
-      data: divisionSchedule
+      data: timetable.generatedSchedules,
     });
 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 /* ---------------- AI-BASED TIMETABLE ---------------- */

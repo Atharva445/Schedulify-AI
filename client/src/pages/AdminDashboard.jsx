@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "../utils/axiosConfig";
 import TimetableGrid from "../components/timetable/TimetableGrid";
 
+
 const AdminDashboard = () => {
   const [branch, setBranch] = useState("");
   const [year, setYear] = useState("");
@@ -80,7 +81,11 @@ const AdminDashboard = () => {
               {division.division}
             </h2>
 
-            <TimetableGrid timetable={division.timetable} />
+            <TimetableGrid
+              timetable={division.timetable}
+              timetableId={timetable._id}
+              divisionName={division.division}
+            />
           </div>
         ))}
 

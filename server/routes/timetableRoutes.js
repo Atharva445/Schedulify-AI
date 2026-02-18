@@ -4,6 +4,11 @@ import { createTimetable, createTimetableAI } from "../controllers/timetableCont
 import {getAllTimetables,getTeacherTimetable,getStudentTimetable,getTimetablesByRole,getTimetableByBranchYear} from "../controllers/timetableController.js";
 import { protect, authorizeRoles } from "../middleware/authMiddleware.js";
 import axios from "../utils/axiosConfig.js";
+import {
+  downloadDivisionExcel,
+  downloadDivisionPDF,
+} from "../controllers/exportController.js";
+
 
 const router = express.Router();
 
@@ -36,6 +41,20 @@ router.get(
 );
 
 router.get("/", protect, getTimetableByBranchYear);
+
+router.get(
+  "/:id/division/:division/excel",
+  protect,
+  downloadDivisionExcel
+);
+
+router.get(
+  "/:id/division/:division/pdf",
+  protect,
+  downloadDivisionPDF
+);
+
+
 
 // ✅ AI-based timetable (optional / future)
 router.post("/generate-ai", createTimetableAI);

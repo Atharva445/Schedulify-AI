@@ -2,10 +2,12 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
   name: String,
+
   email: {
     type: String,
     unique: true,
   },
+
   password: String,
 
   role: {
@@ -14,8 +16,14 @@ const userSchema = new mongoose.Schema({
     required: true,
   },
 
-  division: String,   // only for students
-  facultyId: Number   // only for teachers
+  // Academic Details (for students)
+  branch: String,      // CSE / IT / ENTC / MECH
+  year: Number,        // 1 / 2 / 3 / 4
+  division: String,    // Division A / B
+
+  //For teachers
+  facultyId: Number
+
 });
 
 export default mongoose.model("User", userSchema);
