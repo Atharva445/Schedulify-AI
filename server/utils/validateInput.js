@@ -77,7 +77,7 @@ export function validateInput(data) {
 
   /* ---------------- DIVISIONS ---------------- */
 
-  if (!Array.isArray(divisions) || divisions.length === 0) {
+  if (!divisions || !Array.isArray(divisions) || divisions.length === 0){
     throw new Error("At least one division is required");
   }
 
@@ -111,8 +111,9 @@ export function validateInput(data) {
     if (!div.name) {
       throw new Error(`Division ${dIdx + 1} is missing name`);
     }
-
-    if (!Array.isArray(div.subjects) || div.subjects.length === 0) {
+    console.log("div:", div);
+    console.log("div.subjects:", div.subjects);
+    if (!div.subjects || !Array.isArray(div.subjects) || div.subjects.length === 0) {
       throw new Error(`Division ${div.name} has no subjects`);
     }
 

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { Plus, X, Trash2, Clock, BookOpen,User } from 'lucide-react';
-import axios from "axios";
+import axios from "../utils/axiosConfig";
 import { useNavigate } from "react-router-dom";
 
 
@@ -61,32 +61,47 @@ export default function Generate() {
     });
   };
   
-  const updateSubjectDuration = (subject, field, value) => {
+ const updateSubjectDuration = (subject, field, value) => {
   const current = formData.subjectDurations[subject] || {};
   let updated = { ...current };
 
-  if (field === "facultyName") {
-    // Keep text value as is
-    updated[field] = value;
+  // 🔥 Do NOT convert facultyId to number
+  if (field === "facultyId" || field === "facultyName") {
+    updated[field] = value;   // keep as string
   } else {
-    // Convert numeric inputs
     const numValue = parseInt(value) || 0;
     updated[field] = numValue;
   }
 
-  // Auto-calculate total when lecture count or duration changes
   if (field === "lectureCount" || field === "lectureDuration") {
-    updated.total = (updated.lectureCount || 0) * (updated.lectureDuration || 0);
+    updated.total =
+      (updated.lectureCount || 0) *
+      (updated.lectureDuration || 0);
   }
 
-  setFormData({
-    ...formData,
+  setFormData(prev => ({
+    ...prev,
     subjectDurations: {
-      ...formData.subjectDurations,
+      ...prev.subjectDurations,
       [subject]: updated,
     },
-  });
+  }));
 };
+
+// const [faculties, setFaculties] = useState([]);
+
+// useEffect(() => {
+//   const fetchFaculties = async () => {
+//     try {
+//       const res = await axios.get("/faculty"); // adjust route if needed
+//       setFaculties(res.data.data);
+//     } catch (err) {
+//       console.error(err);
+//     }
+//   };
+
+//   fetchFaculties();
+// }, []);
 
   
   const getTotalStudyHours = () => {
@@ -95,126 +110,6 @@ export default function Generate() {
     }, 0);
   };
   
-// const handleNext = async () => {
-//   // ✅ STEP 1 — FORM VALIDATIONS (before proceeding or submitting)
-//   if (currentStep === 1) {
-//     // Schedule Settings validations
-//     if (!formData.branch || formData.branch.trim() === "") {
-//       alert("Please enter your Branch / Class.");
-//       return;
-//     }
-
-//     if (!formData.divisionCount || formData.divisionCount < 1) {
-//       alert("Please specify the number of divisions (at least 1).");
-//       return;
-//     }
-
-//     if (!formData.startTime || !formData.endTime) {
-//       alert("Please select valid Start and End times.");
-//       return;
-//     }
-
-//     const startMinutes = Number(formData.startTime.split(":")[0]) * 60 + Number(formData.startTime.split(":")[1]);
-//     const endMinutes = Number(formData.endTime.split(":")[0]) * 60 + Number(formData.endTime.split(":")[1]);
-//     if (endMinutes <= startMinutes) {
-//       alert("End time must be later than start time.");
-//       return;
-//     }
-
-//     if (formData.noOfBreaks && formData.breakTimes?.length > 0) {
-//       const invalidBreak = formData.breakTimes.some(b => !b.start || !b.end);
-//       if (invalidBreak) {
-//         alert("Please enter valid start and end times for all breaks.");
-//         return;
-//       }
-//     }
-//   }
-
-//   if (currentStep === 2) {
-//     // Subjects validations
-//     if (!formData.subjects || formData.subjects.length === 0) {
-//       alert("Please add at least one subject.");
-//       return;
-//     }
-
-//     const missingDuration = formData.subjects.some(
-//       (s) => !formData.subjectDurations[s]?.lectureDuration
-//     );
-//     if (missingDuration) {
-//       alert("Please specify lecture durations for all subjects.");
-//       return;
-//     }
-//   }
-
-//   // ✅ STEP 2 — NEXT STEP NAVIGATION
-//   if (currentStep < steps.length) {
-//     setCurrentStep((prev) => prev + 1);
-//     return;
-//   }
-
-//   // ✅ STEP 3 — FINAL SUBMISSION
-//   try {
-//     console.log("🧾 Submitting form data:", formData);
-
-//     // 🧩 Build backend payload
-//     const payload = {
-//       branch: formData.branch || "",
-//       divisionCount: formData.divisionCount || 1,
-//       divisions: formData.divisions || [],
-//       subjects: formData.subjects.map((name) => ({
-//         name,
-//         lectures:
-//           formData.subjectDurations[name]?.lectureCount ||
-//           Math.max(
-//             1,
-//             Math.floor(
-//               (formData.subjectDurations[name]?.total || 60) / 60
-//             )
-//           ),
-//         durationPerLecture:
-//           formData.subjectDurations[name]?.lectureDuration || 60,
-//         totalDuration: formData.subjectDurations[name]?.total || 0,
-//         professor:
-//           formData.professors?.[name] || "Unassigned", // 👈 Optional if you add professors later
-//       })),
-//       startTime: formData.startTime || "09:00",
-//       endTime: formData.endTime || "17:00",
-//       noOfBreaks: formData.noOfBreaks || 1,
-//       availableHoursPerDay: formData.hoursPerDay || 8,
-//       workingDaysPerWeek: formData.workingDays || 5,
-//       // breakDuration: formData.breakDuration || 30,
-//       // breakDetails:
-//       //   formData.breakTimes?.map((b) => ({
-//       //     start: b.start,
-//       //     end: b.end,
-//       //   })) || [],
-//       difficultyLevel: formData.difficultyLevel || 3,
-//     };
-
-//     console.log("📦 Payload sent to backend:", payload);
-
-//     // 🛰️ POST request to backend
-//     const response = await axios.post(
-//       "http://localhost:5000/api/timetable/generate",
-//       payload,
-//       {
-//         headers: { "Content-Type": "application/json" },
-//         withCredentials: false,
-//       }
-//     );
-
-//     console.log("✅ Timetable generated:", response.data);
-
-//     // ✅ STEP 4 — Navigate to results page
-//     navigate("/results", { state: { timetable: response.data } });
-//   } catch (error) {
-//     console.error("❌ Timetable generation failed:", error);
-//     alert(
-//       error.response?.data?.message ||
-//         "Something went wrong while generating timetable. Check console."
-//     );
-//   }
-// };
 // ---------- Helper: Build clean payload for backend ----------
 const buildPayloadFromForm = (formData) => {
   // Ensure numeric conversions and sane defaults
@@ -240,7 +135,7 @@ const buildPayloadFromForm = (formData) => {
       if (!(fname in facultyNameToId)) {
         const id = faculties.length + 1; // simple incremental id
         facultyNameToId[fname] = id;
-        faculties.push({ id, name: fname });
+        faculties.push({ facultyId: id, name: fname });
       }
     }
   });
@@ -256,36 +151,38 @@ const buildPayloadFromForm = (formData) => {
     const totalDuration = Number(meta.total) || lectureCount * lectureDuration;
 
     const facultyName = (meta.facultyName || "").trim();
-    const facultyId = facultyName ? facultyNameToId[facultyName] : null;
+    const facultyId = facultyName? Number(facultyNameToId[facultyName]): null;
 
     return {
-      name,
-      lectures: lectureCount,
-      durationPerLecture: lectureDuration,
-      totalDuration,
-      facultyId, // null means "Unassigned" — backend can attempt to assign from a pool
-      facultyName: facultyName || null,
-    };
+    name,
+    lectures: lectureCount,
+    durationPerLecture: lectureDuration,
+    totalDuration,
+    facultyId: facultyId,
+    facultyName: facultyName || null,
+    isLab: false
+  };
   });
 
   // Optional: build divisions array (A, B, C...)
-  const divisions = Array.from({ length: divisionCount }, (_, i) => ({
-    name: String.fromCharCode(65 + i),
-  }));
+ const divisions = Array.from({ length: divisionCount }, (_, i) => ({
+  name: String.fromCharCode(65 + i),
+  subjects: subjects  // attach same subjects to each division
+}));
 
   return {
-    branch,
-    numDivisions: divisionCount,
-    divisions,
-    faculties, // [{id, name}, ...]
-    subjects,
-    startTime,
-    endTime,
-    workingDaysPerWeek,
-    availableHoursPerDay,
-    breakDetails,
-    difficultyLevel: Number(formData.difficultyLevel || 3),
-  };
+  branch,
+  numDivisions: divisionCount,
+  // divisions,
+  subjects,
+  faculties,
+  startTime,
+  endTime,
+  workingDaysPerWeek,
+  breakDetails: breakDetails,
+  difficultyLevel: Number(formData.difficultyLevel || 3),
+  year: Number(formData.year),
+};
 };
 
 // ---------- Replacement handleNext ----------
@@ -346,7 +243,7 @@ const handleNext = async () => {
 
     const payload = buildPayloadFromForm(formData);
     console.log("📦 Payload sent to backend:", payload);
-
+    console.log("FINAL PAYLOAD:", JSON.stringify(payload, null, 2));
     // POST to backend
     const response = await axios.post(
       "http://localhost:5000/api/timetable/generate",
@@ -362,12 +259,15 @@ const handleNext = async () => {
     });
 
   } catch (error) {
-    console.error("❌ Timetable generation failed:", error);
-    alert(
-      error.response?.data?.message ||
-        "Something went wrong while generating timetable. Check console."
-    );
-  }
+  console.log("FULL BACKEND ERROR:");
+  console.log(error.response?.data);   // 👈 THIS IS IMPORTANT
+
+  alert(
+    error.response?.data?.message ||
+    JSON.stringify(error.response?.data) ||
+    "Generation failed"
+  );
+}
 };
 
 
@@ -393,7 +293,7 @@ const handleNext = async () => {
     return `${hours}:${minutes}`;
   };
 
-  
+
   return (
     <div className="min-h-screen bg-slate-950 py-12">
       <div className="container mx-auto px-6 max-w-4xl">
@@ -458,16 +358,6 @@ const handleNext = async () => {
                   How would you like to set duration?
                 </label>
                 <div className="flex gap-3 bg-slate-800/30 p-1 rounded-lg w-fit">
-                  <button
-                    onClick={() => setDurationMode('total')}
-                    className={`px-6 py-2.5 rounded-md font-medium transition-all ${
-                      durationMode === 'total'
-                        ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Total Hours
-                  </button>
                   <button
                     onClick={() => setDurationMode('lecture')}
                     className={`px-6 py-2.5 rounded-md font-medium transition-all ${
@@ -564,81 +454,112 @@ const handleNext = async () => {
                             </>
                           ) : (
                             <>
-  {/* Number of Lectures */}
-  <div>
-    <label className="block text-xs font-medium text-slate-400 mb-1.5">
-      No. of Lectures
-    </label>
-    <div className="flex items-center gap-2">
-      <BookOpen className="w-4 h-4 text-purple-400" />
-      <input
-        type="number"
-        min="0"
-        max="100"
-        value={duration.lectureCount || 0}
-        onChange={(e) =>
-          updateSubjectDuration(subject, "lectureCount", Number(e.target.value))
-        }
-        className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-        placeholder="e.g. 4"
-      />
-    </div>
-  </div>
+                        {/* Number of Lectures */}
+                          <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                              No. of Lectures
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="w-4 h-4 text-purple-400" />
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={duration.lectureCount || 0}
+                                onChange={(e) =>
+                                  updateSubjectDuration(subject, "lectureCount", Number(e.target.value))
+                                }
+                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="e.g. 4"
+                              />
+                            </div>
+                          </div>
 
-  {/* Per Lecture Duration */}
-  <div>
-    <label className="block text-xs font-medium text-slate-400 mb-1.5">
-      Per Lecture (min)
-    </label>
-    <div className="flex items-center gap-2">
-      <Clock className="w-4 h-4 text-purple-400" />
-      <input
-        type="number"
-        min="0"
-        max="360"
-        value={duration.lectureDuration || 0}
-        onChange={(e) =>
-          updateSubjectDuration(
-            subject,
-            "lectureDuration",
-            Number(e.target.value)
-          )
-        }
-        className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-        placeholder="e.g. 60"
-      />
-      <span className="text-xs text-slate-400">min</span>
-    </div>
-  </div>
+                          {/* Per Lecture Duration */}
+                          <div>
+                            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                              Per Lecture (min)
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-purple-400" />
+                              <input
+                                type="number"
+                                min="0"
+                                max="360"
+                                value={duration.lectureDuration || 0}
+                                onChange={(e) =>
+                                  updateSubjectDuration(
+                                    subject,
+                                    "lectureDuration",
+                                    Number(e.target.value)
+                                  )
+                                }
+                                className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="e.g. 60"
+                              />
+                              <span className="text-xs text-slate-400">min</span>
+                            </div>
+                          </div>
 
-  {/* Faculty Name */}
-  <div>
-    <label className="block text-xs font-medium text-slate-400 mb-1.5">
-      Faculty Name
-    </label>
-    <div className="flex items-center gap-2">
-      <User className="w-4 h-4 text-purple-400" />
-      <input
-        type="text"
-        value={duration.facultyName || ""}
-        onChange={(e) =>
-          updateSubjectDuration(subject, "facultyName", e.target.value)
-        }
-        className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-        placeholder="e.g. Prof. Mehta"
-      />
-    </div>
-  </div>
+                          {/* Faculty Name */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                            Faculty
+                          </label>
 
-  {/* Total Duration Display */}
-  {/* <div className="md:col-span-1 flex items-end">
-    <div className="w-full px-3 py-2 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-      <p className="text-xs text-purple-400 font-medium">
-        {duration.total ? `${duration.total} mins` : "Set above"}
-      </p>
-    </div>
-  </div> */}
-</>
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-purple-400" />
+
+                            <select
+                            value={duration.facultyId || ""}
+                            onChange={(e) => {
+                            const selectedId = e.target.value;
+                            const selectedName =
+                              e.target.options[e.target.selectedIndex].text;
+
+                            setFormData(prev => {
+                              const existing = prev.subjectDurations[subject] || {};
+
+                              return {
+                                ...prev,
+                                subjectDurations: {
+                                  ...prev.subjectDurations,
+                                  [subject]: {
+                                    ...existing,
+                                    facultyId: Number(selectedId),
+                                    facultyName: selectedName,
+                                  }
+                                }
+                              };
+                            });
+                          }}
+                                                      
+                            className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          >
+                            <option value="">Select Faculty</option>
+
+                            <option value="1">Ravindra Sangle</option>
+                            <option value="2">Sanjeev Dwiwedi</option>
+                            <option value="3">Pankaj Vanwari</option>
+                            <option value="4">Amit Nerurkar</option>
+                            <option value="5">Sachin Deshpande</option>
+                            <option value="6">Sachin Bojewar</option>
+                            <option value="7">Swapnil Sonawane</option>
+                            <option value="8">Mahesh Khandke</option>
+                            <option value="9">Umesh Kulkarni</option>
+                            <option value="10">Kavita Shirsat</option>
+                            <option value="11">Divya Nimbalkar</option>
+                            <option value="12">Suvarna Bhat</option>
+                            <option value="13">Snehal Andhare</option>
+                            <option value="14">Suja Maam</option>
+                          </select>
+                          
+                          {/* <p style={{ color: "white", fontSize: "12px" }}>
+                            Stored facultyId: {duration.facultyId}
+                          </p> */}
+                          </div>
+                        </div>
+                        </>
 
                           )}
                         </div>
@@ -700,21 +621,47 @@ const handleNext = async () => {
             <div className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Branch / Class
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Computer Engineering"
-                  value={formData.branch || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, branch: e.target.value })
-                  }
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-100 
-                            placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 
-                            focus:border-transparent transition-all"
-                />
-              </div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Branch / Class
+                  </label>
+
+                  <select
+                    value={formData.branch || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, branch: e.target.value })
+                    }
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-100 
+                              focus:outline-none focus:ring-2 focus:ring-indigo-500 
+                              focus:border-transparent transition-all"
+                  >
+                    <option value="">Select Branch</option>
+                    <option value="CSE">CSE</option>
+                    <option value="IT">IT</option>
+                    <option value="ENTC">ENTC</option>
+                    <option value="MECH">MECH</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Year
+                  </label>
+
+                  <select
+                    value={formData.year || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, year: Number(e.target.value) })
+                    }
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-slate-100 
+                              focus:outline-none focus:ring-2 focus:ring-indigo-500 
+                              focus:border-transparent transition-all"
+                  >
+                    <option value="">Select Year</option>
+                    <option value="1">FY</option>
+                    <option value="2">SY</option>
+                    <option value="3">TY</option>
+                    <option value="4">BE</option>
+                  </select>
+                </div>
                <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   No of Divisions

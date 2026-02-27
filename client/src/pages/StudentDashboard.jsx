@@ -3,16 +3,22 @@ import axios from "../utils/axiosConfig";
 import TimetableGrid from "../components/timetable/TimetableGrid";
 
 const StudentDashboard = () => {
-  const [division, setDivision] = useState(null);
+  const [timetableDoc, setTimetableDoc] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       const res = await axios.get("/timetable/view");
-      setDivision(res.data.data[0]?.generatedSchedules[0]);
+
+      // Store entire timetable document
+      setTimetableDoc(res.data.data[0]);
     };
 
     fetchData();
   }, []);
+
+  if (!timetableDoc) return null;
+
+  const division = timetableDoc.generatedSchedules[0];
 
   return (
     <div className="p-6 text-white">
@@ -20,14 +26,15 @@ const StudentDashboard = () => {
         Student Dashboard
       </h1>
 
-      {division && (
-        <>
-          <h2 className="text-xl mb-2">
-            {division.division}
-          </h2>
-          <TimetableGrid timetable={division.timetable} timetableId={timetable._id}/>
-        </>
-      )}
+      <h2 className="text-xl mb-2">
+        {division.division}
+      </h2>
+
+      <TimetableGrid
+        timetable={division.timetable}
+        timetableId={timetableDoc._id}
+        divisionName={division.division}
+      />
     </div>
   );
 };

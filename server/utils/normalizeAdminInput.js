@@ -101,16 +101,20 @@ console.table(
     blocks: s.isLab ? s.labBlocks : s.lectures
   }))
 );
-
+console.log("numDivisions:", numDivisions);
+console.log("divisionCount:", divisionCount);
   /* ---------- RETURN CLEAN DATA ---------- */
 
   return {
+    branch: data.branch,        // 👈 ADD THIS
+    year: data.year,
     startTime,
     endTime,
     workingDaysPerWeek,
     difficultyLevel,
     faculties,
     breaks: breakDetails,
-    divisions
+    divisions,
+    subjects: normalizedSubjects
   };
 }

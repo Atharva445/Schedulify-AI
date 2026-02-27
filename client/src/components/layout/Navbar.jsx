@@ -25,9 +25,9 @@ export default function Navbar() {
             <Link to="/" className="text-slate-300 hover:text-slate-100 transition-colors text-sm font-medium">
               Home
             </Link>
-            <Link to="/generate" className="text-slate-300 hover:text-slate-100 transition-colors text-sm font-medium">
+            {/* <Link to="/generate" className="text-slate-300 hover:text-slate-100 transition-colors text-sm font-medium">
               Generate
-            </Link>
+            </Link> */}
             <Link to="/my-timetables" className="text-slate-300 hover:text-slate-100 transition-colors text-sm font-medium">
               My Timetables
             </Link>

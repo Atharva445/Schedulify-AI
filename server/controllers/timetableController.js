@@ -6,41 +6,45 @@ import { normalizeAdminInput } from "../utils/normalizeAdminInput.js";
 import axios from "../utils/axiosConfig.js";
 
 /* ---------------- RULE-BASED TIMETABLE ---------------- */
+
 export const createTimetable = async (req, res) => {
   try {
     const normalizedData = normalizeAdminInput(req.body);
 
-    console.log(
-      "✅ Divisions after normalization:",
-      normalizedData.divisions.map(d => ({
-        name: d.name,
-        subjects: d.subjects.length
-      }))
-    );
-
     validateInput(normalizedData);
 
-    const generated = generateTimetable(normalizedData);
+    const generated = await generateTimetable(normalizedData);
 
-    await Timetable.create({
-      branch: req.body.branch,
-      year: req.body.year,
-      divisions: normalizedData.divisions,
+    const saved = await Timetable.create({
+      branch: normalizedData.branch,
+      year: normalizedData.year,
+      startTime: normalizedData.startTime,
+      endTime: normalizedData.endTime,
+      workingDaysPerWeek: normalizedData.workingDaysPerWeek,
+      breaks: normalizedData.breaks,
+      difficultyLevel: normalizedData.difficultyLevel,
       generatedSchedules: generated.generatedSchedules,
-      totalStudyTime: generated.totalStudyTime
+      totalStudyDuration: generated.totalStudyTime,
+      subjects: req.body.subjects,
+      totalSubjects: req.body.subjects.length,
     });
 
     res.status(200).json({
       success: true,
-      data: generated
+      data: saved,
     });
 
   } catch (err) {
-    res.status(400).json({
-      success: false,
-      message: err.message
-    });
-  }
+  console.error("FULL ERROR STACK:");
+  console.error(err.stack);   // VERY IMPORTANT
+
+  res.status(400).json({
+    success: false,
+    message: err.message,
+  });
+}
+  // console.log("REQUEST BODY:", JSON.stringify(req.body, null, 2));
+  // console.log("Divisions inside generator:", divisions);
 };
 
 export const getTimetablesByRole = async (req, res) => {
@@ -49,33 +53,24 @@ export const getTimetablesByRole = async (req, res) => {
     const { branch, year } = req.query;
 
     let filter = {};
-
     if (branch) filter.branch = branch;
     if (year) filter.year = Number(year);
 
-    const timetables = await Timetable.find(filter);
+    const timetables = await Timetable.find(filter).sort({ createdAt: -1 });
 
-    // ADMIN FILTER SUPPORT
+    /* ---------------- ADMIN ---------------- */
     if (user.role === "admin") {
-      const { branch, year } = req.query;
-
-      const filter = {};
-      if (branch) filter.branch = branch;
-      if (year) filter.year = Number(year);
-
-      const timetables = await Timetable.find(filter).sort({ createdAt: -1 });
-
       return res.json({ success: true, data: timetables });
     }
 
-
+    /* ---------------- TEACHER ---------------- */
     if (user.role === "teacher") {
       const filtered = timetables.map((tt) => ({
         ...tt._doc,
         generatedSchedules: tt.generatedSchedules.map((division) => ({
-          ...division,
+          ...division._doc,
           timetable: division.timetable.map((day) => ({
-            ...day,
+            ...day._doc,
             slots: day.slots.filter(
               (slot) => slot.facultyId == user.facultyId
             ),
@@ -86,18 +81,18 @@ export const getTimetablesByRole = async (req, res) => {
       return res.json({ success: true, data: filtered });
     }
 
+    /* ---------------- STUDENT ---------------- */
     if (user.role === "student") {
-      const filtered = timetables.map((tt) => ({
-        ...tt._doc,
-        generatedSchedules: tt.generatedSchedules.filter(
-          (division) => division.division === user.division
-        ),
-      }));
+      const filtered = timetables.filter(
+        (tt) =>
+          tt.branch === user.branch &&
+          tt.year === user.year
+      );
 
       return res.json({ success: true, data: filtered });
     }
 
-    res.status(403).json({ message: "Access denied" });
+    return res.status(403).json({ message: "Access denied" });
 
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -143,7 +138,7 @@ export const getTimetableByBranchYear = async (req, res) => {
 
 export const getTeacherTimetable = async (req, res) => {
   try {
-    const teacherId = req.user.id; // from JWT
+    const facultyId = req.user.facultyId; // 🔥 use facultyId not Mongo _id
 
     const timetable = await Timetable.findOne().sort({ createdAt: -1 });
 
@@ -155,7 +150,7 @@ export const getTeacherTimetable = async (req, res) => {
       division: schedule.division,
       timetable: schedule.timetable.map(day => ({
         day: day.day,
-        slots: day.slots.filter(slot => slot.facultyId === teacherId)
+        slots: day.slots.filter(slot => slot.facultyId === facultyId)
       }))
     }));
 
@@ -192,7 +187,6 @@ export const getStudentTimetable = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 
 /* ---------------- AI-BASED TIMETABLE ---------------- */

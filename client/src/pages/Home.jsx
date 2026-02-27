@@ -1,7 +1,25 @@
 import { Brain, Calendar, Sparkles, CheckCircle, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link,useNavigate } from 'react-router-dom';
+
+
 
 export default function Home() {
+
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+
+    if (!token) {
+      navigate("/login");
+    } else {
+      if (role === "admin") navigate("/generate");
+      else if (role === "teacher") navigate("/teacher");
+      else if (role === "student") navigate("/student");
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-slate-950">
       
@@ -44,28 +62,16 @@ export default function Home() {
             
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Link to="/generate">
-                <button className="group relative px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl font-semibold text-lg text-white shadow-lg shadow-purple-500/50 hover:shadow-purple-500/80 transition-all duration-300 hover:scale-105 flex items-center gap-2">
+              {/* <Link to="/generate"> */}
+                <button onClick={handleGetStarted} className="group relative px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl font-semibold text-lg text-white shadow-lg shadow-purple-500/50 hover:shadow-purple-500/80 transition-all duration-300 hover:scale-105 flex items-center gap-2">
                   Get Started Free
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
-              </Link>
-              
-              <button className="px-8 py-4 bg-slate-900/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl font-semibold text-lg text-slate-200 hover:bg-slate-800/50 hover:border-slate-600 transition-all duration-300">
-                Watch Demo
-              </button>
+              {/* </Link> */}
             </div>
             
             {/* Trust Indicators */}
             <div className="flex flex-col sm:flex-row gap-6 pt-8 text-sm text-slate-500">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
-                <span>No credit card required</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
-                <span>Free forever</span>
-              </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-emerald-400" />
                 <span>Sync with Google Calendar</span>

@@ -167,9 +167,9 @@ const Results = () => {
         )}
 
           <TimetableGrid
-            timetableData={timetableData}
-            days={days}
-            dates={dates}
+            timetable={generated.timetable}
+            timetableId={apiResponse._id}
+            divisionName={generated.division}
           />
         </div>
 

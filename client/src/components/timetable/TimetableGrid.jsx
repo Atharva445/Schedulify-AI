@@ -122,9 +122,13 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
                           slot.isLab ? "bg-purple-600" : "bg-blue-600"
                         }`}
                       >
-                        <div>{slot.subject}</div>
-                        <div className="text-[10px] opacity-80">
-                          Faculty: {slot.facultyName}
+                        <div>
+                          <p>{slot.subject}</p>
+                          {slot.facultyName && (
+                            <p className="text-xs text-purple-400">
+                              {slot.facultyName}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ) : (
