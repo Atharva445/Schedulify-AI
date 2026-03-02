@@ -43,11 +43,11 @@ const Login = () => {
 
       // ✅ Redirect based on role
       if (data.role === "admin") {
-        navigate("/admin-dashboard");
+        navigate("/admin/dashboard");
       } else if (data.role === "teacher") {
-        navigate("/teacher-dashboard");
+        navigate("/teacher/dashboard");
       } else if (data.role === "student") {
-        navigate("/student-dashboard");
+        navigate("/student/dashboard");
       }
 
     } catch (err) {

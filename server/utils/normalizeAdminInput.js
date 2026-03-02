@@ -70,7 +70,7 @@ export function normalizeAdminInput(data) {
         name: raw.name,
         facultyId: raw.facultyId,
         isLab: true,
-
+        facultyName: raw.facultyName,
         // number of 1-hour consecutive slots
         labBlocks: Number(raw.hours) || 2,
 
@@ -81,6 +81,7 @@ export function normalizeAdminInput(data) {
     return {
       name: raw.name,
       facultyId: raw.facultyId,
+      facultyName: raw.facultyName,
       isLab: false,
 
       lectures: Number(raw.lectures) || Number(raw.hours) || 1,

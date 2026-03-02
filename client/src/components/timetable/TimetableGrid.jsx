@@ -3,12 +3,9 @@ import axios from "../../utils/axiosConfig";
 import { FileSpreadsheet, FileDown } from "lucide-react";
 
 const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
-//   console.log("TT ID:", timetableId);
-// console.log("Division Name:", divisionName);
-
   if (!timetable || timetable.length === 0) {
     return (
-      <div className="text-center text-slate-400 py-10">
+      <div className="text-center text-slate-400 py-16">
         No timetable data available
       </div>
     );
@@ -19,7 +16,9 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
   const downloadPDF = async () => {
     try {
       const res = await axios.get(
-        `/timetable/${timetableId}/division/${encodeURIComponent(divisionName)}/pdf`,
+        `/timetable/${timetableId}/division/${encodeURIComponent(
+          divisionName
+        )}/pdf`,
         { responseType: "blob" }
       );
 
@@ -36,7 +35,9 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
   const downloadExcel = async () => {
     try {
       const res = await axios.get(
-        `/timetable/${timetableId}/division/${encodeURIComponent(divisionName)}/excel`,
+        `/timetable/${timetableId}/division/${encodeURIComponent(
+          divisionName
+        )}/excel`,
         { responseType: "blob" }
       );
 
@@ -75,25 +76,34 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
   /* ================= UI ================= */
 
   return (
-    <div className="relative bg-slate-900 rounded-xl border border-slate-800 mb-4">
-
-      {/* Scrollable Grid */}
+    <div
+      className="
+      relative
+      bg-gradient-to-br from-slate-900/80 to-slate-800/60
+      backdrop-blur-xl
+      border border-slate-700/40
+      rounded-2xl
+      shadow-2xl
+      overflow-hidden
+      mb-6
+    "
+    >
       <div className="overflow-x-auto">
         <div
-          className="grid min-w-[900px]"
+          className="grid min-w-[950px]"
           style={{
-            gridTemplateColumns: `120px repeat(${days.length}, 1fr)`
+            gridTemplateColumns: `140px repeat(${days.length}, 1fr)`
           }}
         >
-          {/* HEADER ROW */}
-          <div className="p-3 font-semibold text-slate-400 border-b border-slate-800">
+          {/* HEADER */}
+          <div className="p-4 font-semibold text-indigo-300 bg-slate-800/50 border-b border-slate-700">
             Time
           </div>
 
           {days.map((day) => (
             <div
               key={day}
-              className="p-3 text-center font-semibold border-b border-l border-slate-800 text-slate-200"
+              className="p-4 text-center font-semibold border-b border-l border-slate-700 text-slate-200 bg-slate-800/30"
             >
               {day}
             </div>
@@ -103,7 +113,7 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
           {timeSlots.map((time) => (
             <React.Fragment key={time}>
               {/* Time Column */}
-              <div className="p-3 text-sm text-slate-400 border-t border-slate-800">
+              <div className="p-4 text-sm font-semibold text-indigo-300 bg-slate-800/40 border-t border-slate-700">
                 {time}
               </div>
 
@@ -114,25 +124,47 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
                 return (
                   <div
                     key={`${day}-${time}`}
-                    className="border-l border-t border-slate-800 p-2"
+                    className="border-l border-t border-slate-700 p-3 min-h-[85px]"
                   >
                     {slot ? (
-                      <div
-                        className={`p-2 rounded text-xs font-medium text-white ${
-                          slot.isLab ? "bg-purple-600" : "bg-blue-600"
-                        }`}
-                      >
-                        <div>
-                          <p>{slot.subject}</p>
-                          {slot.facultyName && (
-                            <p className="text-xs text-purple-400">
-                              {slot.facultyName}
+                      <div className="group h-full">
+                        <div
+                          className={`
+                            h-full
+                            rounded-xl
+                            px-3 py-2
+                            bg-gradient-to-br 
+                            ${
+                              slot.isLab
+                                ? "from-purple-600/80 to-indigo-600/80"
+                                : "from-blue-600/80 to-indigo-600/80"
+                            }
+                            text-white
+                            shadow-md
+                            hover:shadow-xl
+                            hover:scale-[1.04]
+                            transition-all duration-200
+                            cursor-pointer
+                          `}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <p className="text-sm font-semibold tracking-wide">
+                              {slot.subject}
                             </p>
-                          )}
+                            {slot.isLab && (
+                              <span className="text-[10px] bg-white/20 px-2 py-[2px] rounded-full">
+                                LAB
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-white/80">
+                            {slot.facultyName}
+                          </p>
                         </div>
                       </div>
                     ) : (
-                      <div className="h-10" />
+                      <div className="h-full opacity-10 hover:opacity-20 transition bg-slate-800/20 rounded-lg" />
                     )}
                   </div>
                 );
@@ -142,27 +174,40 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
         </div>
       </div>
 
-      {/* Download Buttons */}
-      {/* Download Buttons */}
-<div className="absolute bottom-2 right-2 flex gap-2 z-30">
-  <button
-    onClick={downloadPDF}
-    title="Download PDF"
-    className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-md border border-slate-600"
-  >
-    <FileDown size={16} />
-  </button>
+      {/* DOWNLOAD BUTTONS */}
+      <div className="absolute bottom-4 right-4 flex gap-3 z-30">
+        <button
+          onClick={downloadPDF}
+          title="Download PDF"
+          className="
+            p-3 
+            bg-slate-800/80 
+            hover:bg-indigo-600 
+            text-white 
+            rounded-full 
+            shadow-lg 
+            transition-all
+          "
+        >
+          <FileDown size={18} />
+        </button>
 
-  <button
-    onClick={downloadExcel}
-    title="Download Excel"
-    className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full shadow-md border border-slate-600"
-  >
-    <FileSpreadsheet size={16} />
-  </button>
-</div>
-
-
+        <button
+          onClick={downloadExcel}
+          title="Download Excel"
+          className="
+            p-3 
+            bg-slate-800/80 
+            hover:bg-emerald-600 
+            text-white 
+            rounded-full 
+            shadow-lg 
+            transition-all
+          "
+        >
+          <FileSpreadsheet size={18} />
+        </button>
+      </div>
     </div>
   );
 };

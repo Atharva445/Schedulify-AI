@@ -14,7 +14,7 @@ export default function Home() {
     if (!token) {
       navigate("/login");
     } else {
-      if (role === "admin") navigate("/generate");
+      if (role === "admin") navigate("/admin/dashboard");
       else if (role === "teacher") navigate("/teacher");
       else if (role === "student") navigate("/student");
     }

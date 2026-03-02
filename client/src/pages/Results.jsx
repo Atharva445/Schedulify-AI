@@ -24,7 +24,7 @@ const Results = () => {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300">
         <h1 className="text-2xl mb-4">❌ No Timetable Found</h1>
-        <Button onClick={() => navigate("/generate")}>
+        <Button onClick={() => navigate("/admin/generate")}>
           Go Back
         </Button>
       </div>
@@ -134,7 +134,7 @@ const Results = () => {
           </h1>
 
           <div className="flex gap-3">
-            <Button onClick={() => navigate("/generate")} variant="secondary">
+            <Button onClick={() => navigate("/admin/generate")} variant="secondary">
               <RefreshCw className="w-4 h-4" /> Regenerate
             </Button>
           </div>

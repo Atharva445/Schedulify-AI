@@ -88,21 +88,29 @@ export default function Generate() {
   }));
 };
 
-// const [faculties, setFaculties] = useState([]);
+const [teachers, setTeachers] = useState([]);
+useEffect(() => {
+  if (!formData.branch) return;
 
-// useEffect(() => {
-//   const fetchFaculties = async () => {
-//     try {
-//       const res = await axios.get("/faculty"); // adjust route if needed
-//       setFaculties(res.data.data);
-//     } catch (err) {
-//       console.error(err);
-//     }
-//   };
+  const fetchTeachers = async () => {
+    try {
+      const res = await axios.get(
+        `/users/teachers?branch=${formData.branch}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
-//   fetchFaculties();
-// }, []);
+      setTeachers(res.data.teachers);
+    } catch (error) {
+      console.error("Error fetching teachers:", error);
+    }
+  };
 
+  fetchTeachers();
+}, [formData.branch]);
   
   const getTotalStudyHours = () => {
     return Object.values(formData.subjectDurations).reduce((sum, duration) => {
@@ -252,7 +260,7 @@ const handleNext = async () => {
 
     console.log("✅ Timetable generated:", response.data);
 
-    navigate("/results", {
+    navigate("/admin/results", {
       state: {
         data: response.data.data   // 🔥 THIS IS THE KEY FIX
       }
@@ -511,48 +519,38 @@ const handleNext = async () => {
                             <User className="w-4 h-4 text-purple-400" />
 
                             <select
-                            value={duration.facultyId || ""}
-                            onChange={(e) => {
-                            const selectedId = e.target.value;
-                            const selectedName =
-                              e.target.options[e.target.selectedIndex].text;
+                              value={duration.facultyId || ""}
+                              onChange={(e) => {
+                                const selectedId = e.target.value;
+                                const selectedName =
+                                  e.target.options[e.target.selectedIndex].text;
 
-                            setFormData(prev => {
-                              const existing = prev.subjectDurations[subject] || {};
+                                setFormData(prev => {
+                                  const existing = prev.subjectDurations[subject] || {};
 
-                              return {
-                                ...prev,
-                                subjectDurations: {
-                                  ...prev.subjectDurations,
-                                  [subject]: {
-                                    ...existing,
-                                    facultyId: Number(selectedId),
-                                    facultyName: selectedName,
-                                  }
-                                }
-                              };
-                            });
-                          }}
-                                                      
-                            className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                          >
-                            <option value="">Select Faculty</option>
+                                  return {
+                                    ...prev,
+                                    subjectDurations: {
+                                      ...prev.subjectDurations,
+                                      [subject]: {
+                                        ...existing,
+                                        facultyId: Number(selectedId),
+                                        facultyName: selectedName,
+                                      }
+                                    }
+                                  };
+                                });
+                              }}
+                              className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            >
+                              <option value="">Select Faculty</option>
 
-                            <option value="1">Ravindra Sangle</option>
-                            <option value="2">Sanjeev Dwiwedi</option>
-                            <option value="3">Pankaj Vanwari</option>
-                            <option value="4">Amit Nerurkar</option>
-                            <option value="5">Sachin Deshpande</option>
-                            <option value="6">Sachin Bojewar</option>
-                            <option value="7">Swapnil Sonawane</option>
-                            <option value="8">Mahesh Khandke</option>
-                            <option value="9">Umesh Kulkarni</option>
-                            <option value="10">Kavita Shirsat</option>
-                            <option value="11">Divya Nimbalkar</option>
-                            <option value="12">Suvarna Bhat</option>
-                            <option value="13">Snehal Andhare</option>
-                            <option value="14">Suja Maam</option>
-                          </select>
+                              {teachers.map((teacher) => (
+                                <option key={teacher._id} value={teacher.facultyId}>
+                                  {teacher.name}
+                                </option>
+                              ))}
+                            </select>
                           
                           {/* <p style={{ color: "white", fontSize: "12px" }}>
                             Stored facultyId: {duration.facultyId}

@@ -50,13 +50,7 @@ export const generateTimetable = async (data) => {
   /* ======================================================
      STEP 0: LOAD FACULTY MAP (DB → facultyId → name)
   ====================================================== */
-
-  const facultyUsers = await User.find({ role: "teacher" });
-
-  const facultyMap = {};
-  facultyUsers.forEach(f => {
-    facultyMap[Number(f.facultyId)] = f.name;
-  });
+  
 
   /* ======================================================
      STEP 1: BUILD EVENT POOL
@@ -65,37 +59,38 @@ export const generateTimetable = async (data) => {
   const events = [];
 
   divisions.forEach((division) => {
-    division.subjects.forEach((sub) => {
+  division.subjects.forEach((sub) => {
 
-      const facultyId = Number(sub.facultyId);
+    const facultyId = Number(sub.facultyId);
 
-      if (!facultyId) {
-        throw new Error(`FacultyId missing for subject ${sub.name}`);
-      }
+    if (!facultyId) {
+      throw new Error(`FacultyId missing for subject ${sub.name}`);
+    }
 
-      if (sub.isLab) {
+    if (sub.isLab) {
+      events.push({
+        type: "LAB",
+        division: division.name,
+        subject: sub.name,
+        facultyId,
+        facultyName: sub.facultyName || "Unknown",
+        blocks: sub.labBlocks,
+      });
+    } else {
+      for (let i = 0; i < sub.lectures; i++) {
         events.push({
-          type: "LAB",
+          type: "THEORY",
           division: division.name,
           subject: sub.name,
           facultyId,
-          facultyName: sub.facultyName || facultyMap[facultyId] || "Unknown",
-          blocks: sub.labBlocks,
+          facultyName: sub.facultyName || "Unknown",
+          blocks: 1,
         });
-      } else {
-        for (let i = 0; i < sub.lectures; i++) {
-          events.push({
-            type: "THEORY",
-            division: division.name,
-            subject: sub.name,
-            facultyId,
-            facultyName: sub.facultyName || facultyMap[facultyId] || "Unknown",
-            blocks: 1,
-          });
-        }
       }
-    });
+    }
+
   });
+});
 
   /* ======================================================
      STEP 2: GLOBAL STRUCTURE
