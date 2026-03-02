@@ -40,6 +40,11 @@ const Login = () => {
       // ✅ Store token & role
       localStorage.setItem("token", data.token);
       localStorage.setItem("role", data.role);
+      localStorage.setItem("branch", data.branch);
+
+      if (data.facultyId) {
+        localStorage.setItem("facultyId", data.facultyId);
+      }
 
       // ✅ Redirect based on role
       if (data.role === "admin") {

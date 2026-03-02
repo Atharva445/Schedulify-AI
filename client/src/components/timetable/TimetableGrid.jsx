@@ -147,10 +147,12 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
                             cursor-pointer
                           `}
                         >
+                          {/* SUBJECT + LAB */}
                           <div className="flex justify-between items-start mb-1">
                             <p className="text-sm font-semibold tracking-wide">
                               {slot.subject}
                             </p>
+
                             {slot.isLab && (
                               <span className="text-[10px] bg-white/20 px-2 py-[2px] rounded-full">
                                 LAB
@@ -158,9 +160,23 @@ const TimetableGrid = ({ timetable, timetableId, divisionName }) => {
                             )}
                           </div>
 
-                          <p className="text-xs text-white/80">
-                            {slot.facultyName}
-                          </p>
+                          {/* TEACHER VIEW (year exists) */}
+                          {slot.year ? (
+                            <>
+                              <p className="text-xs text-white/80">
+                                {slot.year} Year • {slot.division}
+                              </p>
+
+                              <p className="text-[11px] text-white/60">
+                                {slot.branch}
+                              </p>
+                            </>
+                          ) : (
+                            /* STUDENT / ADMIN VIEW */
+                            <p className="text-xs text-white/80">
+                              {slot.facultyName}
+                            </p>
+                          )}
                         </div>
                       </div>
                     ) : (

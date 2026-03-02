@@ -47,7 +47,7 @@ export default function Navbar() {
             </button>
             
             {/* Get Started Button */}
-            <Link to="/admin/dashboard">
+            <Link to="/login">
               <button className="hidden md:block px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg text-white text-sm font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all">
                 Get Started
               </button>
