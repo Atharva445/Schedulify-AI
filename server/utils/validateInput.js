@@ -91,8 +91,8 @@ export function validateInput(data) {
 
   faculties.forEach((f) => {
     if (
-      typeof f.facultyId !== "number" ||
-      !f.name ||
+      !f.facultyId ||
+      typeof f.name !== "string" ||
       f.name.trim() === ""
     ) {
       throw new Error("Each faculty must have id and name");
@@ -130,7 +130,7 @@ export function validateInput(data) {
         );
       }
 
-      if (!facultyIds.has(sub.facultyId)) {
+      if (!facultyIds.has(String(sub.facultyId))) {
         throw new Error(
           `FacultyId ${sub.facultyId} for subject ${sub.name} does not exist`
         );

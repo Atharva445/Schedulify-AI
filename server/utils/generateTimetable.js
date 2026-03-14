@@ -1,5 +1,5 @@
 // server/utils/generateTimetable.js
-import User from "../models/User.js";
+import Timetable from "../models/Timetable.js";
 
 /* ======================================================
    HELPERS
@@ -27,7 +27,7 @@ const toTime = (mins) => {
 };
 
 /* ======================================================
-   MAIN CSP TIMETABLE GENERATOR
+   MAIN GENERATOR
 ====================================================== */
 
 export const generateTimetable = async (data) => {
@@ -48,56 +48,75 @@ export const generateTimetable = async (data) => {
   const slots = Array.from({ length: slotsPerDay }, (_, i) => i);
 
   /* ======================================================
-     STEP 0: LOAD FACULTY MAP (DB → facultyId → name)
+     STEP 1: BUILD GLOBAL FACULTY BUSY MAP (FROM DB)
   ====================================================== */
-  
+
+  const facultyBusy = {};
+
+  const existingTTs = await Timetable.find();
+
+  existingTTs.forEach(tt => {
+    tt.generatedSchedules.forEach(div => {
+      div.timetable.forEach(dayObj => {
+
+        const dayIndex = Number(dayObj.day.split(" ")[1]) - 1;
+
+        dayObj.slots.forEach(slot => {
+          const slotIndex =
+            (toMinutes(slot.start) - dayStart) / SLOT_DURATION;
+
+          facultyBusy[slot.facultyId] ??= {};
+          facultyBusy[slot.facultyId][dayIndex] ??= {};
+          facultyBusy[slot.facultyId][dayIndex][slotIndex] = true;
+        });
+      });
+    });
+  });
 
   /* ======================================================
-     STEP 1: BUILD EVENT POOL
+     STEP 2: BUILD EVENT POOL
   ====================================================== */
 
   const events = [];
 
   divisions.forEach((division) => {
-  division.subjects.forEach((sub) => {
+    division.subjects.forEach((sub) => {
 
-    const facultyId = Number(sub.facultyId);
+      const facultyId = sub.facultyId;
 
-    if (!facultyId) {
-      throw new Error(`FacultyId missing for subject ${sub.name}`);
-    }
+      if (!facultyId) {
+        throw new Error(`FacultyId missing for subject ${sub.name}`);
+      }
 
-    if (sub.isLab) {
-      events.push({
-        type: "LAB",
-        division: division.name,
-        subject: sub.name,
-        facultyId,
-        facultyName: sub.facultyName || "Unknown",
-        blocks: sub.labBlocks,
-      });
-    } else {
-      for (let i = 0; i < sub.lectures; i++) {
+      if (sub.isLab) {
         events.push({
-          type: "THEORY",
+          type: "LAB",
           division: division.name,
           subject: sub.name,
           facultyId,
           facultyName: sub.facultyName || "Unknown",
-          blocks: 1,
+          blocks: sub.labBlocks || 2,
         });
+      } else {
+        for (let i = 0; i < sub.lectures; i++) {
+          events.push({
+            type: "THEORY",
+            division: division.name,
+            subject: sub.name,
+            facultyId,
+            facultyName: sub.facultyName || "Unknown",
+            blocks: 1,
+          });
+        }
       }
-    }
-
+    });
   });
-});
 
   /* ======================================================
-     STEP 2: GLOBAL STRUCTURE
+     STEP 3: GLOBAL TIMETABLE STRUCTURE
   ====================================================== */
 
   const timetable = {};
-  const facultyBusy = {};
 
   days.forEach((d) => {
     timetable[d] = {};
@@ -119,7 +138,7 @@ export const generateTimetable = async (data) => {
   };
 
   /* ======================================================
-     STEP 3: PRIORITIZE
+     STEP 4: PRIORITIZE EVENTS
   ====================================================== */
 
   const labs = events.filter(e => e.type === "LAB");
@@ -131,7 +150,7 @@ export const generateTimetable = async (data) => {
   const eventQueue = [...labs, ...theory];
 
   /* ======================================================
-     STEP 4: CSP ASSIGNMENT
+     STEP 5: CSP ASSIGNMENT
   ====================================================== */
 
   for (const event of eventQueue) {
@@ -149,6 +168,7 @@ export const generateTimetable = async (data) => {
         if (timetable[d][s][event.division] !== null) continue;
 
         if (event.blocks === 2) {
+
           if (s + 1 >= slotsPerDay) continue;
 
           if (
@@ -166,6 +186,7 @@ export const generateTimetable = async (data) => {
           placed = true;
         }
         else {
+
           if (!isFacultyFree(event.facultyId, d, s)) continue;
 
           if (
@@ -189,14 +210,17 @@ export const generateTimetable = async (data) => {
   }
 
   /* ======================================================
-     STEP 5: CONVERT TO OUTPUT
+     STEP 6: CONVERT TO OUTPUT
   ====================================================== */
 
   const generatedSchedules = divisions.map((div) => {
+
     const tt = days.map((d) => {
+
       const slotsOut = [];
 
       slots.forEach((s) => {
+
         const e = timetable[d][s][div.name];
         if (!e) return;
 
@@ -206,7 +230,7 @@ export const generateTimetable = async (data) => {
         slotsOut.push({
           subject: e.subject,
           facultyId: e.facultyId,
-          facultyName: e.facultyName, // 🔥 always preserved
+          facultyName: e.facultyName,
           isLab: e.type === "LAB",
           blockType: e.type === "LAB" ? "lab-hour" : "theory",
           duration: 60,
@@ -214,7 +238,7 @@ export const generateTimetable = async (data) => {
           end: toTime(end),
         });
       });
-
+      console.log("Faculty IDs entering generator:", divisions[0].subjects.map(s => s.facultyId));
       return {
         day: `Day ${d + 1}`,
         slots: slotsOut,

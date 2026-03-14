@@ -4,7 +4,7 @@ import TimetableGrid from "../components/timetable/TimetableGrid";
 
 const TeacherDashboard = () => {
   const [facultyTimetable, setFacultyTimetable] = useState([]);
-  const facultyId = Number(localStorage.getItem("facultyId"));
+  const facultyId = localStorage.getItem("facultyId");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,7 +32,7 @@ const TeacherDashboard = () => {
                 const teacherBranch = localStorage.getItem("branch");
 
                   if (
-                    String(slot.facultyId) === String(facultyId) &&
+                    slot.facultyId?.toString() === facultyId &&
                     tt.branch === teacherBranch
                   ) {
                   existingDay.slots.push({

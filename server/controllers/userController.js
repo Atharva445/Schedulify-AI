@@ -109,6 +109,46 @@ export const getTeachersByBranch = async (req, res) => {
   }
 };
 
+// export const createTeacher = async (req, res) => {
+//   try {
+//     const { name, email, password, branch } = req.body;
+
+//     if (!name || !email || !password || !branch) {
+//       return res.status(400).json({ message: "All fields required" });
+//     }
+
+//     const existing = await User.findOne({ email });
+//     if (existing) {
+//       return res.status(400).json({ message: "Email already exists" });
+//     }
+
+//     const lastTeacher = await User.findOne({ role: "teacher", branch })
+//       .sort({ facultyId: -1 });
+
+//     const newFacultyId = lastTeacher ? lastTeacher.facultyId + 1 : 1;
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     const teacher = await User.create({
+//       name,
+//       email,
+//       password: hashedPassword,
+//       role: "teacher",
+//       facultyId: newFacultyId,
+//       branch
+//     });
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Teacher created successfully",
+//       teacher
+//     });
+
+//   } catch (error) {
+//     res.status(400).json({ message: error.message });
+//   }
+// };
+
 export const createTeacher = async (req, res) => {
   try {
     const { name, email, password, branch } = req.body;
@@ -122,21 +162,20 @@ export const createTeacher = async (req, res) => {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    const lastTeacher = await User.findOne({ role: "teacher", branch })
-      .sort({ facultyId: -1 });
-
-    const newFacultyId = lastTeacher ? lastTeacher.facultyId + 1 : 1;
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // create teacher first
     const teacher = await User.create({
       name,
       email,
       password: hashedPassword,
       role: "teacher",
-      facultyId: newFacultyId,
       branch
     });
+
+    // use Mongo _id as facultyId
+    teacher.facultyId = teacher._id;
+    await teacher.save();
 
     res.status(201).json({
       success: true,
@@ -148,7 +187,6 @@ export const createTeacher = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
 
 /* ---------------- LOGIN (JWT GENERATED HERE) ---------------- */
 

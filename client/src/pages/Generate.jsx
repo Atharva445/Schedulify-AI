@@ -134,20 +134,26 @@ const buildPayloadFromForm = (formData) => {
   }));
 
   // Build unique faculties list from subjectDurations[*].facultyName
-  const facultyNameToId = {};
   const faculties = [];
-  formData.subjects.forEach((s) => {
-    const meta = formData.subjectDurations?.[s] || {};
-    const fname = (meta.facultyName || "").trim();
-    if (fname) {
-      if (!(fname in facultyNameToId)) {
-        const id = faculties.length + 1; // simple incremental id
-        facultyNameToId[fname] = id;
-        faculties.push({ facultyId: id, name: fname });
-      }
-    }
-  });
 
+// collect only faculties actually used in subjects
+formData.subjects.forEach((name) => {
+  const meta = formData.subjectDurations?.[name] || {};
+
+  if (meta.facultyId && meta.facultyName) {
+    const alreadyExists = faculties.find(
+      (f) => f.facultyId === meta.facultyId
+    );
+
+    if (!alreadyExists) {
+      faculties.push({
+        facultyId: meta.facultyId,
+        name: meta.facultyName,
+      });
+    }
+  }
+});
+console.log("FACULTIES SENT:", faculties);
   // Build subjects array with facultyId (or null) and durations in minutes
   const subjects = formData.subjects.map((name) => {
     const meta = formData.subjectDurations?.[name] || {};
@@ -159,7 +165,7 @@ const buildPayloadFromForm = (formData) => {
     const totalDuration = Number(meta.total) || lectureCount * lectureDuration;
 
     const facultyName = (meta.facultyName || "").trim();
-    const facultyId = facultyName? Number(facultyNameToId[facultyName]): null;
+    const facultyId = meta.facultyId || null;
 
     return {
     name,
@@ -534,7 +540,7 @@ const handleNext = async () => {
                                       ...prev.subjectDurations,
                                       [subject]: {
                                         ...existing,
-                                        facultyId: Number(selectedId),
+                                        facultyId: selectedId,
                                         facultyName: selectedName,
                                       }
                                     }
@@ -546,7 +552,7 @@ const handleNext = async () => {
                               <option value="">Select Faculty</option>
 
                               {teachers.map((teacher) => (
-                                <option key={teacher._id} value={teacher.facultyId}>
+                                <option key={teacher._id} value={teacher._id}>
                                   {teacher.name}
                                 </option>
                               ))}

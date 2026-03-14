@@ -62,9 +62,11 @@ export const getTimetablesByRole = async (req, res) => {
     if (user.role === "admin") {
       return res.json({ success: true, data: timetables });
     }
-
+    console.log("Logged in user:", user);
+    console.log("User role:", user.role);
     /* ---------------- TEACHER ---------------- */
     if (user.role === "teacher") {
+      console.log("Teacher ID:", user._id);
       const filtered = timetables.map((tt) => ({
         ...tt._doc,
         generatedSchedules: tt.generatedSchedules.map((division) => ({
@@ -72,7 +74,9 @@ export const getTimetablesByRole = async (req, res) => {
           timetable: division.timetable.map((day) => ({
             ...day._doc,
             slots: day.slots.filter(
-              (slot) => slot.facultyId == user.facultyId
+              (slot) =>
+                slot.facultyId &&
+                slot.facultyId.toString() === user._id.toString()
             ),
           })),
         })),
@@ -150,7 +154,9 @@ export const getTeacherTimetable = async (req, res) => {
       division: schedule.division,
       timetable: schedule.timetable.map(day => ({
         day: day.day,
-        slots: day.slots.filter(slot => slot.facultyId === facultyId)
+        slots: day.slots.filter(
+          slot => slot.facultyId.toString() === req.user._id.toString()
+        )
       }))
     }));
 
@@ -159,7 +165,11 @@ export const getTeacherTimetable = async (req, res) => {
       data: filteredSchedules
     });
 
-  } catch (error) {
+    
+      console.log("Logged in user:", req.user);   // 🔍 DEBUG
+      console.log("Teacher facultyId:", req.user.facultyId); // 🔍 DEBUG
+  } 
+  catch (error) {
     res.status(500).json({ message: error.message });
   }
 };

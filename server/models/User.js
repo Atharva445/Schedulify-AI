@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
   division: String,    // Division A / B
 
   //For teachers
-  facultyId: Number
+  facultyId: mongoose.Schema.Types.ObjectId,
 
 });
 

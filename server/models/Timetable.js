@@ -3,7 +3,10 @@ import mongoose from "mongoose";
 /* ---------- SLOT ---------- */
 const slotSchema = new mongoose.Schema({
   subject: String,
-  facultyId: Number,
+  facultyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  },
   facultyName: String,
   isLab: Boolean,
   blockType: String,
@@ -45,7 +48,12 @@ const timetableSchema = new mongoose.Schema(
     subjects: [
       {
         name: String,
-        facultyId: Number,
+
+        facultyId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        },
+
         facultyName: String,
         lectures: Number,
         isLab: Boolean,

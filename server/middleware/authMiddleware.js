@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import axios from "../utils/axiosConfig.js";
 
+/* ---------------- PROTECT ROUTE ---------------- */
 export const protect = async (req, res, next) => {
   try {
     let token;
@@ -14,19 +14,35 @@ export const protect = async (req, res, next) => {
     }
 
     if (!token) {
-      return res.status(401).json({ message: "Not authorized" });
+      return res.status(401).json({ message: "Not authorized, token missing" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.id).select("-password");
+
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    /* 🔑 Store only required fields */
+    req.user = {
+      _id: user._id,
+      role: user.role,
+      name: user.name,
+      email: user.email,
+      branch: user.branch,
+      year: user.year,
+    };
 
     next();
   } catch (error) {
+    console.error("Auth error:", error);
     res.status(401).json({ message: "Token failed" });
   }
 };
 
+/* ---------------- ROLE AUTHORIZATION ---------------- */
 export const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {

@@ -94,12 +94,12 @@ const AdminDashboard = () => {
           ➕ Add Student
         </button>
 
-        <button
+        {/* <button
           onClick={() => navigate("/admin/users")}
           className="w-full bg-indigo-600 hover:bg-indigo-700 px-4 py-3 rounded-lg"
         >
           👥 View All Users
-        </button>
+        </button> */}
       </div>
 
       {/* TIMETABLE MANAGEMENT */}
