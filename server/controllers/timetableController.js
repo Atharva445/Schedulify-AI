@@ -4,7 +4,8 @@ import { generateTimetable_AI } from "../utils/generateTimetable_AI.js";
 import { validateInput } from "../utils/validateInput.js";
 import { normalizeAdminInput } from "../utils/normalizeAdminInput.js";
 import axios from "../utils/axiosConfig.js";
-
+import { getFragmentByBranch } from "../utils/fragmentation.js";
+import mongoose from "mongoose";
 /* ---------------- RULE-BASED TIMETABLE ---------------- */
 
 export const createTimetable = async (req, res) => {
@@ -33,30 +34,71 @@ export const createTimetable = async (req, res) => {
       success: true,
       data: saved,
     });
+    // 🔁 REPLICATION (copy data)
+    await TimetableReplica.create(saved.toObject());
+    console.log("✅ Data replicated to replica DB");
 
   } catch (err) {
-  console.error("FULL ERROR STACK:");
-  console.error(err.stack);   // VERY IMPORTANT
+    console.error("FULL ERROR STACK:");
+    console.error(err.stack);   // VERY IMPORTANT
 
-  res.status(400).json({
-    success: false,
-    message: err.message,
-  });
-}
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
   // console.log("REQUEST BODY:", JSON.stringify(req.body, null, 2));
   // console.log("Divisions inside generator:", divisions);
 };
+
+
+
+const TimetableReplica = mongoose.model(
+  "TimetableReplica",
+  Timetable.schema,
+  "timetables_replica"
+);
+
 
 export const getTimetablesByRole = async (req, res) => {
   try {
     const user = req.user;
     const { branch, year } = req.query;
+    //force fail
+    const forceFail = req.query.fail === "true";
 
     let filter = {};
     if (branch) filter.branch = branch;
     if (year) filter.year = Number(year);
 
-    const timetables = await Timetable.find(filter).sort({ createdAt: -1 });
+    // const timetables = await Timetable.find(filter).sort({ createdAt: -1 });
+    let timetables;
+    try {
+      console.log("📌 Fetching from PRIMARY DB");
+
+      if (forceFail) {
+        throw new Error("Simulated failure");
+      }
+
+      if (branch) {
+        console.log("📊 Applying FRAGMENTATION on branch:", branch);
+        timetables = await getFragmentByBranch(branch);
+      } else {
+        console.log("📊 No fragmentation → Fetching FULL dataset");
+        timetables = await Timetable.find(filter).sort({ createdAt: -1 });
+      }
+
+    } catch (error) {
+      console.log("⚠️ PRIMARY FAILED → Switching to REPLICA");
+
+      if (branch) {
+        console.log("📊 (Replica) Applying FRAGMENTATION on branch:", branch);
+        timetables = await TimetableReplica.find({ branch }).sort({ createdAt: -1 });
+      } else {
+        console.log("📊 (Replica) No fragmentation → Fetching FULL dataset");
+        timetables = await TimetableReplica.find(filter).sort({ createdAt: -1 });
+      }
+    }
 
     /* ---------------- ADMIN ---------------- */
     if (user.role === "admin") {
@@ -165,10 +207,10 @@ export const getTeacherTimetable = async (req, res) => {
       data: filteredSchedules
     });
 
-    
-      console.log("Logged in user:", req.user);   // 🔍 DEBUG
-      console.log("Teacher facultyId:", req.user.facultyId); // 🔍 DEBUG
-  } 
+
+    console.log("Logged in user:", req.user);   // 🔍 DEBUG
+    console.log("Teacher facultyId:", req.user.facultyId); // 🔍 DEBUG
+  }
   catch (error) {
     res.status(500).json({ message: error.message });
   }
